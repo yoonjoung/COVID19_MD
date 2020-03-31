@@ -177,7 +177,7 @@ latestdate<-max(dtafig$date)
 latestnewcases<-dtafig%>%filter(date==max(date))%>%select(newcases)%>%summarize_all(funs(mean)) 
 previousnewcases<-dtafig%>%arrange(date)%>%mutate(previousnewcases=lag(newcases))%>%filter(date==max(date))%>%select(previousnewcases)%>%summarize_all(funs(mean)) 
 ```
-Since testing capacity has been low, we _cannot_ confidently answer this question. Nevertheless, we can see __the number of NEW confirmed cases each day__. The first figure is for the entire state. We want to see the number of new infections to be stable more or less, without sudden and large increases. __On `r latestdate`, `r latestnewcases` new cases were confirmed, compared to `r previousnewcases` on the previous date__. This decrease (or sudden increase on the previous day) was due to new cases in Carroll county on March 28 - see below. Still, even without the Carroll county's outbreak, the number of new cases in the last few days is substantially more than before.  
+Since testing capacity has been low, we _cannot_ confidently answer this question. Nevertheless, we can see __the number of NEW confirmed cases each day__. The first figure is for the entire state. We want to see the number of new infections to be stable more or less, without sudden and large increases. __On `r latestdate`, `r latestnewcases` new cases were confirmed, compared to `r previousnewcases` on the previous date__. The peak on March 28th was due to new cases in Carroll county on March 28 - see below. Still, even without the Carroll county's outbreak, the number of new cases in the last few days is substantially more than before.  
 
 _Hover over each figure to see values and more options._
 ```{r plotTrendNewCasesMD, results='asis', fig.align="left", out.width="800px"}
@@ -269,7 +269,7 @@ plot_ly(dtafig, x=~date, y=~newcases, color= ~county,
 ---
 
 __Data sources__:  
-1. All data on number of cases for the state and counties come from New York Times' [Coronavirus in the U.S.: Latest Map and Case Count](https://github.com/nytimes/covid-19-data). Accessed on March 30, 2020. Numbers for the entire state of Maryland may be different from those in [Coronavirus COVID-19 Global Cases](https://www.arcgis.com/apps/opsdashboard/index.html#/85320e2ea5424dfaaa75ae62e5c06e61) by Center for Systems Science and Engineering at JHU, which currently does not publish county-level data. __For the latest state-level data, check out [Maryland COVID-19 Case Map Dashboard](https://coronavirus.maryland.gov/)__ by Maryland Department of Health.   
+1. All data on number of cases for the state and counties come from New York Times' [Coronavirus in the U.S.: Latest Map and Case Count](https://github.com/nytimes/covid-19-data). Accessed on March 31, 2020, 3:26PM EST. Numbers for the entire state of Maryland may be different from those in [Coronavirus COVID-19 Global Cases](https://www.arcgis.com/apps/opsdashboard/index.html#/85320e2ea5424dfaaa75ae62e5c06e61) by Center for Systems Science and Engineering at JHU, which currently does not publish county-level data. __For the latest state-level data, check out [Maryland COVID-19 Case Map Dashboard](https://coronavirus.maryland.gov/)__ by Maryland Department of Health.   
 2. All data on population come from US Census Bureau's [County Population Totals: 2010-2019](https://www.census.gov/data/tables/time-series/demo/popest/2010s-counties-total.html#par_textimage). Accessed on March 29, 2020. 
 
 ---
