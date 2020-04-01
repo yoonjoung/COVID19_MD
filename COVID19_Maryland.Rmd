@@ -269,13 +269,13 @@ plot_ly(dtafig, x=~date, y=~newcases, color= ~county,
 ---
 
 __Data sources__:  
-1. All data on number of cases for the state and counties come from New York Times' [Coronavirus in the U.S.: Latest Map and Case Count](https://github.com/nytimes/covid-19-data). Accessed on March 31, 2020, 3:26PM EST. Numbers for the entire state of Maryland may be different from those in [Coronavirus COVID-19 Global Cases](https://www.arcgis.com/apps/opsdashboard/index.html#/85320e2ea5424dfaaa75ae62e5c06e61) by Center for Systems Science and Engineering at JHU, which currently does not publish county-level data. __For the latest state-level data, check out [Maryland COVID-19 Case Map Dashboard](https://coronavirus.maryland.gov/)__ by Maryland Department of Health.   
+1. All data on number of cases for the state and counties come from New York Times' [Coronavirus in the U.S.: Latest Map and Case Count](https://github.com/nytimes/covid-19-data). Accessed on April 1, 2020, 12:32PM EDT. Numbers for the entire state of Maryland may be different from those in [Coronavirus COVID-19 Global Cases](https://www.arcgis.com/apps/opsdashboard/index.html#/85320e2ea5424dfaaa75ae62e5c06e61) by Center for Systems Science and Engineering at JHU, which currently does not publish county-level data. __For the latest state-level data, check out [Maryland COVID-19 Case Map Dashboard](https://coronavirus.maryland.gov/)__ by Maryland Department of Health.   
 2. All data on population come from US Census Bureau's [County Population Totals: 2010-2019](https://www.census.gov/data/tables/time-series/demo/popest/2010s-counties-total.html#par_textimage). Accessed on March 29, 2020. 
 
 ---
 
 <p style="color:gray">
-See [GitHub](https://github.com/yoonjoung/COVID19_US) for data, code, and more information. 
+See [GitHub](https://github.com/yoonjoung/COVID19_MD) for data, code, and more information. 
 For typos, errors, and questions, contact me at [www.isquared.global]("https://www.isquared.global/YJ")</p>
 
 _Making Data Delicious, One Byte at a Time_, in good times and bad times.
