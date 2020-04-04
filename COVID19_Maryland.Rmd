@@ -22,14 +22,16 @@ suppressWarnings(suppressMessages(library(tidyverse)))
 suppressWarnings(suppressMessages(library(readxl)))
 suppressMessages(library(plotly))
 suppressMessages(library(Matrix))
+suppressMessages(library(stringr))
+suppressMessages(library(stringi))
 
 ```
 
 ```{r dataPop}
-dta<-read.csv("C:/Users/YoonJoung Choi/Dropbox/0 Project/COVID19_US/DataCensusBureau/co-est2019-alldata.csv")
+dtapopcounty<-read.csv("C:/Users/YoonJoung Choi/Dropbox/0 Project/COVID19_US/DataCensusBureau/co-est2019-alldata.csv")
 
-names(dta)<- tolower(names(dta))   
-dtapopcounty<-dta%>%select(stname, ctyname, popestimate2019)%>%
+names(dtapopcounty)<- tolower(names(dtapopcounty))   
+dtapopcounty<-dtapopcounty%>%select(stname, ctyname, popestimate2019)%>%
     filter(stname=="Maryland")%>%
     mutate(pop=popestimate2019, 
            state=as.character(stname), 
@@ -42,14 +44,14 @@ dtapopcounty<-dta%>%select(stname, ctyname, popestimate2019)%>%
 ```
 
 ```{r dataByCounty}
-dta<-read.csv("C:/Users/YoonJoung Choi/Dropbox/0 Project/COVID19_US/DataNYTimes/us-counties.csv")%>%
+dtacounty<-read.csv("C:/Users/YoonJoung Choi/Dropbox/0 Project/COVID19_US/DataNYTimes/us-counties.csv")%>%
     mutate(
         date=as.Date(as.character(date)),
         state=as.character(state),
         county=as.character(county)
     )
 
-dta<-dta%>%
+dtacounty<-dtacounty%>%
     filter(state=="Maryland")%>%
     mutate(
         firstdatestate=min(date), #first date for the state
@@ -70,14 +72,77 @@ dta<-dta%>%
     )%>%ungroup()%>%
     arrange(county, date)
 
-dim(dta)
-dta<-left_join(dta, dtapopcounty, by = "county")%>%filter(county!="Maryland") 
-dim(dta)
+dim(dtacounty)
+dtacounty<-left_join(dtacounty, dtapopcounty, by = "county")%>%filter(county!="Maryland") 
+dim(dtacounty)
+```
+
+```{r dataMD}
+#DATA FROM MDHD
+dtaMD<-read_excel("C:/Users/YoonJoung Choi/Dropbox/0 Project/COVID19_US/DataMD/MDHealthDepartmentDashboard.xlsx")
+str(dtaMD)
+
+names(dtaMD)<- tolower(names(dtaMD))   
+dtaMD<-dtaMD%>%
+    filter(group=="total")%>%
+    mutate(    
+        cases=as.numeric(stri_trim_both(cases)),
+        negativetest=as.numeric(str_replace_all(stri_trim_both(negativetest), fixed(","),"")),
+        deaths=as.numeric(stri_trim_both(deaths)),
+        hospitalizations=as.numeric(stri_trim_both(hospitalizations)),
+        releasedfromisolation=as.numeric(stri_trim_both(releasedfromisolation)),
+        totaltests=cases+negativetest
+    )%>%
+    arrange(date)%>%
+    mutate(
+        newcases=lead(cases)-cases,
+        newtests=lead(totaltests)-totaltests
+    )%>%
+    select(date, cases, negativetest, deaths, hospitalizations, releasedfromisolation, totaltests, starts_with("new"))
+str(dtaMD)
+
+```
+
+```{r dataByAge}
+#DATA FROM MDHD
+dtapopbyage<-read_excel("C:/Users/YoonJoung Choi/Dropbox/0 Project/COVID19_US/DataMD/CNTY-PopEst-2018.xlsx")%>%
+    select(agegroup, pop10)%>%
+    filter(is.na(pop10)==F)%>%
+    filter(agegroup!="Total")%>%
+    mutate(    
+        age=as.numeric(sapply(strsplit(agegroup,"-"), `[`, 1)) 
+    )%>%
+    select(age, pop10)
+
+dtabyage<-read_excel("C:/Users/YoonJoung Choi/Dropbox/0 Project/COVID19_US/DataMD/MDHealthDepartmentDashboard.xlsx")
+
+names(dtabyage)<- tolower(names(dtabyage))   
+dtabyage<-dtabyage%>%
+    filter(group=="age")%>%
+    mutate(    
+        grouplabel=ifelse(grouplabel=="80+", "80", grouplabel), 
+        age=as.numeric(sapply(strsplit(grouplabel,"-"), `[`, 1)),
+        agegroup=grouplabel, 
+        agegroup=ifelse(age==80, "80+", agegroup), 
+        cases=as.numeric(cases) 
+    )%>%
+    select(date, age, agegroup, cases)
+
+dim(dtabyage)
+dtabyage<-left_join(dtabyage, dtapopbyage, by = "age")
+dim(dtabyage)
+
+dtabyage<-dtabyage%>%
+    mutate(
+        incidence=round(cases*100000/pop10, 0), 
+        temp=max(date),
+        latest=date==temp
+    )%>%select(-temp)
 ```
 
 #####__COVID-19 update in Maryland, US__ 
 
-(Updated: `r time` EST)  
+(Updated: `r time` EDT)  
 
 So, I have been watching the epidemic in China and Korea since the beginning, but it is still not easy to settle into this reality here in the US. 
 
@@ -85,89 +150,199 @@ So, I have been watching the epidemic in China and Korea since the beginning, bu
 
 * Second, there are many excellent news articles and information sources, but I'm sharing some more __questions (see left panel) and answers for those who are curious about a specific situation in Maryland, US - especially including local data__. Maryland is my beautiful adopted home state of over 20 years. The State is doing its best with strong leadership, but this virus arrived here when the country was not ready and is spreading fast unfortunately... 
 
-_All COVID-19 data are from [Coronavirus in the U.S.: Latest Map and Case Count](https://www.nytimes.com/interactive/2020/us/coronavirus-us-cases.html), which currently publishes US county-level data. See footnote for further information about data sources. More questions and answers will be added, as more local data become available._ 
+_See footnote for further information about data sources. More questions and answers will be added, as more local data become available._ 
 
-(Sorry, but this is not mobile device friendly, and is best viewed on your regular monitor.)
+(Sorry, this is not mobile device friendly, and is best viewed on your regular monitor.)
 
 ---
 
-#####__Q 1. When and where did COVID-19 start in Maryland?__ 
+#####__Q 5. What is the latest mortality, and how has it changed?__ 
 ```{r}
-firstdatestate<-mean(dta$firstdatestate)
+latestdateMD<-max(dtaMD$date)
 
-firstcountyname<-dta%>%filter(firstcounty==TRUE)%>%select(county)
-firstcountyname<-firstcountyname$county
+
+deathsMD<-dtaMD%>%filter(date==max(date))%>%select(deaths)%>%summarize_all(funs(mean))
+casesMD<-dtaMD%>%filter(date==max(date))%>%select(cases)%>%summarize_all(funs(mean))
+cfrMD<-round(100*deathsMD/casesMD, 1)
+
+latestdatecounty<-max(dtacounty$date)
 ```
-The first confirmed COVID-19 case was reported in `r firstcountyname` county on `r firstdatestate`. 
+As of `r latestdateMD`, __`r deathsMD` COVID-19-positive deaths have occurred. This means `r cfrMD` percent of all confirmed cases__. Below figure shows mortality by county - in terms of both absolute number and rate, as of `r latestdatecounty`. 
 
-#####__Q 2. How many confirmed cases do we have now, and where are they?__ 
+```{r plotdeathsCounty, results='asis', fig.align="left", out.width="800px"}
+dtafig<-dtacounty%>%filter(date==latestdatecounty)%>%filter(deaths>0)%>%select(date, county, deaths, cases)%>%mutate(cfr=round(100*deaths/cases, 1)) 
+
+dtafig$county<-factor(dtafig$county, 
+                    levels = unique(dtafig$county) 
+                    [order(dtafig$deaths, decreasing = TRUE)])
+
+fig1<-plot_ly(dtafig, x = ~county, y = ~deaths, type="bar", 
+              name = "Total number of deaths") %>%
+        layout(
+            title ="Latest number of COVID-19-positive deaths by county in Maryland",
+            xaxis = list( 
+                         autotick = FALSE,
+                         showticklabels = TRUE, 
+                         tickfont = list(size=11), 
+                         tickangle=-90
+                         ),
+            yaxis = list(title = "Number")
+            )
+
+dtafig$county<-factor(dtafig$county, 
+                    levels = unique(dtafig$county) 
+                    [order(dtafig$cfr, decreasing = TRUE)])
+
+fig2<-plot_ly(dtafig, x = ~county, y = ~cfr, type="bar",
+              name="Deaths per 100 cases (%)") %>%
+        layout(
+            title ="COVID-19 mortality rate by county in Maryland",
+            xaxis = list(  
+                         autotick = FALSE,
+                         showticklabels = TRUE, 
+                         tickfont = list(size=11), 
+                         tickangle=-90
+                         ),
+            yaxis = list(title = "Deaths per 100 cases (%)")
+            )
+
+subplot(fig1, fig2, titleY = TRUE) %>%
+        layout(
+            title ="COVID-19 mortality by county in Maryland",
+            legend = list(orientation = "h",   
+                        xanchor = "center",  
+                        x=0.5, y=-0.4)            
+            )
+
+```
+(__Source__: New York Times' [Coronavirus in the U.S.: Latest Map and Case Count](https://github.com/nytimes/covid-19-data), US Census Bureau's [County Population Totals: 2010-2019](https://www.census.gov/data/tables/time-series/demo/popest/2010s-counties-total.html#par_textimage))
+
+Below chart shows the mortality trends, since March 18 when the first COVID-19 death was reported in Maryland. In countries severely affected by the epidemic before US, mortality rates increased rapidly in the beginning. Mortality rates then stabilized in some of the countries, depending on health systems' response.  
+```{r plotcfrMDtrends, results='asis', fig.align="left", out.width="800px"}
+dtafig<-dtacounty%>%select(date, deaths, cases)%>%
+    group_by(date)%>%
+    summarize_all(funs(sum))%>%
+    mutate(cfr=round(100*deaths/cases, 1))%>%
+    filter(cfr>0)
+
+plot_ly(dtafig, x = ~date, y = ~cfr, type="bar") %>%
+        layout(
+            title ="Trends of COVID-19 mortality rates in Maryland",
+            xaxis = list( 
+                         autotick = FALSE,
+                         showticklabels = TRUE, 
+                         tickfont = list(size=11), 
+                         tickangle=-90
+                         ),
+            yaxis = list(title = "Deaths per 100 confirmed cases (%)")
+            )
+```
+
+```{r plotdeathsMDtrends, fig.align="left", out.width="800px"}
+dtafig<-dtacounty%>%select(date, deaths, cases)%>%
+    group_by(date)%>%
+    summarize_all(funs(sum))%>%
+    mutate(cfr=round(100*deaths/cases, 1))%>%
+    filter(cfr>0)
+
+plot_ly(dtafig, x = ~date, y = ~deaths, type="bar") %>%
+        layout(
+            title ="Trends of COVID-19 mortality in Maryland",
+            xaxis = list( 
+                         autotick = FALSE,
+                         showticklabels = TRUE, 
+                         tickfont = list(size=11), 
+                         tickangle=-90
+                         ),
+            yaxis = list(title = "Number of COVID-19 deaths")
+            )
+```
+(__Source__: New York Times' [Coronavirus in the U.S.: Latest Map and Case Count](https://github.com/nytimes/covid-19-data), US Census Bureau's [County Population Totals: 2010-2019](https://www.census.gov/data/tables/time-series/demo/popest/2010s-counties-total.html#par_textimage))
+
+#####__Q 4. How extensive has testing been?__ 
+
 ```{r}
-latestdatestate<-max(dta$date)
-
-temp<-dta%>%filter(date==latestdatecounty)
-statecases<-sum(temp$cases)
-
-ncounties<-dta%>%filter(date==latestdatecounty)%>%nrow()
-ncountiestotal<-dtapopcounty%>%filter(county!="Maryland")%>%nrow()
+firstdateMD<-min(dtaMD$date)
+latestdateMD<-max(dtaMD$date)
+totaltestMD<-dtaMD%>%filter(date==max(date))%>%select(totaltests)%>%summarize_all(funs(max))
 
 popstate<-dtapopcounty%>%filter(county=="Maryland")%>%select(pop)%>%summarize_all(funs(sum))
+testrateMD<-round(1000*totaltestMD/popstate, 1)
+totaltestMD<-as.character(totaltestMD)
 
-incidencerate<-round(100000*statecases/popstate, 0)
+#The State has tested 220,880 individuals, with 15,694 new people tested on March 31.
+#https://coronavirus.health.ny.gov/home
+totaltestNY<-as.vector(220880)
+popstateNY<-as.vector(19500000)
+testrateNY<-round(1000*totaltestNY/popstateNY, 0)
+latestnewtestsNY<-"15,694"
 ```
-As of `r latestdatestate`, __`r statecases` confirmed cases have been reported in `r ncounties` counties__ (out of total `r ncountiestotal` counties in the state). This means there are __`r incidencerate` people with confirmed COVID-19 per 100,000 population in the state__. No case has been reported in two counties, Allegany and Dorchester. Below figure shows number of confirmed cases by county.  
+This is a very important question, since the magnitude of testing over time is critical information to understand the epidemic. Unfortunately, I haven't found good trend data on testing in Maryland, and decided to track [COVID-19 Case Map Dashboard](https://coronavirus.maryland.gov/) by Maryland Department of Health starting from March 31, 2020. However, _I would apprecite very much if anyone can share testing trend data in Maryland!_. 
 
-_Hover over each figure to see values and more options._
-```{r plottotalcasesCounty, results='asis', fig.align="left", out.width="800px"}
-dtafig<-dta%>%filter(date==latestdatecounty)%>%select(date, county, cases)
+As of `r latestdateMD`, __a total of `r totaltestMD` tests have been conducted. This means `r testrateMD` tests have been conducted in every 1000 people. Below shows the number of new tests by date in Maryland__ - well, only starting from March 31st. For comparison:   
 
-dtafig$county<-factor(dtafig$county, 
-                    levels = unique(dtafig$county) 
-                    [order(dtafig$cases, decreasing = TRUE)])
+* __[In New York state](https://coronavirus.health.ny.gov/home), `r testrateNY` out of 1000 people have been tested__ as of April 2. FYI, infection rate in New York State was [471 per 100,000 population](https://www.nytimes.com/interactive/2020/us/coronavirus-us-cases.html#states) as of April 2, roughly 10 times higher than in Maryland (see Question 2). 
 
-fig<-plot_ly(dtafig, x = ~county, y = ~cases, type="bar") %>%
+* __[In South Korea](https://rpubs.com/YJ_Choi/COVID19_SouthKorea)__ (a country with a strict and consistent trace-test-isolation strategy since the beginning of the epidemic), __8 out of 1000 people have been tested__ as of April 2. Infection rate in South Korea was 19 per 100,000 population, less than half of Maryland's rate (see Question 2). 
+
+```{r plotTrendNewTestsMD, results='asis', fig.align="left", out.width="800px"}
+dtafig<-dtaMD%>%select(date, newtests)
+
+plot_ly(dtafig, x=~date, y=~newtests, 
+        type = 'bar' ) %>%
         layout(
-            title ="Number of total confirmed cases by county in Maryland",
-            xaxis = list(title = "County",  
+            annotations= list(x = "2020-03-22",
+                              y = 1750,
+                              text = "Does anyone have test trend data in Maryland?!",
+                              font = list(color = 'rgb(136,86,167)', size = 18),
+                              xref = "x",
+                              yref = "y",
+                              showarrow = FALSE),
+            title = "Trend of daily new COVID-19 tests in Maryland",
+            xaxis = list(title = "Date",  
                          autotick = FALSE,
                          showticklabels = TRUE, 
-                         tickfont = list(size=11), 
-                         tickangle=-90
-                         ),
-            yaxis = list(title = "Total number of confirmed cases")
-            )
-fig
+                         tickfont = list(size=10), 
+                         tickangle=-90),
+            yaxis = list(title = "Number of new tests"))
+
 ```
+(__Source__: Maryland Department of Health's [Maryland COVID-19 Case Map Dashboard](https://coronavirus.maryland.gov/))
 
-Montgomery county currently has the largest number of confirmed cases. But, it is also the largest county in terms of population. __When we look at infection rates (i.e., number of confirmed cases per 100,000 population), Carroll county has the highest rate__, because of [an outbreak at a nursing home](https://baltimore.cbslocal.com/2020/03/28/coronavirus-latest-66-residents-at-carroll-county-nursing-home-test-positive-for-covid-19/) (See Question 3).
+#####__Q 3. What age groups are affected?__ 
 
-_Hover over each figure to see values and more options._
-```{r plotincidenceCounty, results='asis', fig.align="left", out.width="800px"}
-dtafig<-dta%>%filter(date==latestdatecounty)%>%
-    select(date, county, cases, pop)%>%
-    mutate(incidence=round(cases*100000/pop), 1)
+```{r}
+incidencetop<-dtabyage%>%filter(latest==TRUE)%>%
+    filter(incidence==max(incidence))%>%select(incidence)%>%
+    summarize_all(funs(max))
+                            
+incidencetopage<-dtabyage%>%filter(latest==TRUE)%>%
+    filter(incidence==max(incidence))%>%select(agegroup)
+incidencetopage<-incidencetopage$agegroup
+```
+COVID-19 has affected __adult population relatively evenly across different ages__. The incidence rate is highest, `r incidencetop` per 100000 population, among people between `r incidencetopage` years of age. But, the rates are about or above 70 in all age groups between 30 and 79. 
 
-dtafig$county<-factor(dtafig$county, 
-                    levels = unique(dtafig$county) 
-                    [order(dtafig$incidence, decreasing = TRUE)])
-
-fig<-plot_ly(dtafig, x = ~county, y = ~incidence, 
-             type="bar", marker = list(color = 'rgb(252,141,89)')) %>%
+```{r plotincidencebyage, results='asis', fig.align="left", out.width="600px"}
+dtafig<-dtabyage%>%filter(latest==TRUE)
+plot_ly(dtafig, x=~agegroup, y=~incidence, 
+        mode = 'marker',
+        transforms = list(
+            list(
+                type = 'groupby',
+                groups = dtabyage$date
+                )
+            )
+        ) %>%
         layout(
-            title ="Incidence rate by county in Maryland",
-            xaxis = list(title = "County",  
-                         autotick = FALSE,
-                         showticklabels = TRUE, 
-                         tickfont = list(size=11), 
-                         tickangle=-90
-                         ),
-            yaxis = list(title = "Number of confirmed cases per 100,000 population")
-            )
-fig
+            title = "Number of COVID-19 cases per 100,000 population, by age group",
+            xaxis = list(title = "Age group"),
+            yaxis = list(title = "Incidence rate per 100,000 population"))
 ```
+(__Source__: Maryland Department of Health's [Maryland COVID-19 Case Map Dashboard](https://coronavirus.maryland.gov/), and Maryland Department of Planning's [Population Estimates by Race and Hispanic Origin for July 1, 2018](https://planning.maryland.gov/MSDC/Pages/pop_estimate/CensPopEst.aspx))
 
-#####__Q 3. How fast has it been spreading?__ 
+#####__Q 2. How fast has it been spreading?__ 
 ```{r dataplotTrendNewCasesMD}
-dtafig<-dta%>%select(date, cases)%>%group_by(date)%>%
+dtafig<-dtacounty%>%select(date, cases)%>%group_by(date)%>%
     summarize_all(funs(sum))%>%
     mutate(
         newcases=cases-lag(cases)
@@ -177,10 +352,11 @@ latestdate<-max(dtafig$date)
 latestnewcases<-dtafig%>%filter(date==max(date))%>%select(newcases)%>%summarize_all(funs(mean)) 
 previousnewcases<-dtafig%>%arrange(date)%>%mutate(previousnewcases=lag(newcases))%>%filter(date==max(date))%>%select(previousnewcases)%>%summarize_all(funs(mean)) 
 ```
-Since testing capacity has been low, we _cannot_ confidently answer this question. Nevertheless, we can see __the number of NEW confirmed cases each day__. The first figure is for the entire state. We want to see the number of new infections to be stable more or less, without sudden and large increases. __On `r latestdate`, `r latestnewcases` new cases were confirmed, compared to `r previousnewcases` on the previous date__. The peak on March 28th was due to new cases in Carroll county on March 28 - see below. Still, even without the Carroll county's outbreak, the number of new cases in the last few days is substantially more than before.  
+Since testing capacity has been low, we _cannot_ confidently answer this question. Nevertheless, we can see __the number of NEW confirmed cases each day__. The first figure is for the entire state. We want to see the number of new infections to be stable more or less, without sudden and large increases. __On `r latestdate`, `r latestnewcases` new cases were confirmed, compared to `r previousnewcases` on the previous date__. The peak on March 28th was due to new cases in Carroll county on March 28 - see the second figure below.  
 
 _Hover over each figure to see values and more options._
 ```{r plotTrendNewCasesMD, results='asis', fig.align="left", out.width="800px"}
+
 plot_ly(dtafig, x=~date, y=~newcases, 
         type = 'bar' ) %>%
         layout(
@@ -192,8 +368,10 @@ plot_ly(dtafig, x=~date, y=~newcases,
                          tickangle=-90),
             yaxis = list(title = "Number of new confirmed cases"))
 ```
+(__Source__: New York Times' [Coronavirus in the U.S.: Latest Map and Case Count](https://github.com/nytimes/covid-19-data))
+
 ```{r dataplotTrendNewCasesCounty}
-dtafig<-dta%>%select(date, county, cases, latesttotal)%>%
+dtafig<-dtacounty%>%select(date, county, cases, latesttotal)%>%
     arrange(county, date)%>%
     mutate(
         newcases=cases-lag(cases), 
@@ -208,7 +386,7 @@ ncounty50<-n_distinct(dtafig$county)
 ncounty50
 ```
 
-Now, _among `r ncounty50` counties with 50 or more confirmed cases_, below shows the trends of daily number of NEW confirmed cases for each of the county. The number of new cases surged in Carroll county, because of [an outbreak at a nursing home](https://baltimore.cbslocal.com/2020/03/28/coronavirus-latest-66-residents-at-carroll-county-nursing-home-test-positive-for-covid-19/). 
+Now, _among `r ncounty50` counties with 50 or more confirmed cases_, below shows the trends of daily number of NEW confirmed cases for each of the county. The number of new cases surged in Carroll county on March 28th, because of [an outbreak at a nursing home](https://baltimore.cbslocal.com/2020/03/28/coronavirus-latest-66-residents-at-carroll-county-nursing-home-test-positive-for-covid-19/). 
 
 _Hover over each figure to see values and more options._
 ```{r plotTrendNewCasesCounty, results='asis', fig.align="left", out.width="800px"}
@@ -228,6 +406,7 @@ plot_ly(dtafig, x=~date, y=~newcases,
             )
 
 ```
+(__Source__: New York Times' [Coronavirus in the U.S.: Latest Map and Case Count](https://github.com/nytimes/covid-19-data))
 
 ```{r}
 fig2<-plot_ly(dtafig, x=~date, y=~newcases, color= ~county, 
@@ -246,7 +425,7 @@ fig2
 
 ```{r}
 #{r plotnewcasesCounty, results='asis', fig.align="left", out.width="800px"}
-dtafig<-dta%>%select(date, county, cases)%>%arrange(county, date)%>%
+dtafig<-dtacounty%>%select(date, county, cases)%>%arrange(county, date)%>%
     mutate(
         newcases=cases-lag(cases), 
         newcases=ifelse(county!=lag(county), NA, newcases )
@@ -266,11 +445,96 @@ plot_ly(dtafig, x=~date, y=~newcases, color= ~county,
             )
 ```
 
+#####__Q 1. How many confirmed cases do we have now, and where are they?__ 
+```{r}
+latestdatecounty<-max(dtacounty$date)
+temp<-dtacounty%>%filter(date==latestdatecounty)
+statecases<-sum(temp$cases)
+
+ncounties<-dtacounty%>%filter(date==latestdatecounty)%>%nrow()
+ncountiestotal<-dtapopcounty%>%filter(county!="Maryland")%>%nrow()
+popstate<-dtapopcounty%>%filter(county=="Maryland")%>%select(pop)%>%summarize_all(funs(sum))
+
+latestdateMD<-max(dtaMD$date)
+casesMD<-dtaMD%>%filter(date==max(date))%>%select(cases)%>%summarize_all(funs(max))
+incidencerateMD<-round(100000*casesMD/popstate, 0)
+
+topincidencecounty<-dtacounty%>%filter(date==latestdatecounty)%>%mutate(incidence=round(cases*100000/pop), 0)%>%filter(incidence==max(incidence)) %>%select(county)
+topincidencecounty<-topincidencecounty
+
+```
+As of `r latestdateMD`, __`r casesMD` confirmed cases have been reported in Maryland__, according to Maryland Department of Health. This means there are __`r incidencerateMD` people with confirmed COVID-19 per 100,000 population in the state__. 
+
+Below figure shows number of confirmed cases by county as of `r latestdatecounty`.  
+
+_Hover over each figure to see values and more options._
+```{r plottotalcasesCounty, results='asis', fig.align="left", out.width="800px"}
+dtafig<-dtacounty%>%filter(date==latestdatecounty)%>%select(date, county, cases)
+
+dtafig$county<-factor(dtafig$county, 
+                    levels = unique(dtafig$county) 
+                    [order(dtafig$cases, decreasing = TRUE)])
+
+fig<-plot_ly(dtafig, x = ~county, y = ~cases, type="bar") %>%
+        layout(
+            title ="Number of total confirmed cases by county in Maryland",
+            xaxis = list(title = "County",  
+                         autotick = FALSE,
+                         showticklabels = TRUE, 
+                         tickfont = list(size=11), 
+                         tickangle=-90
+                         ),
+            yaxis = list(title = "Total number of confirmed cases")
+            )
+fig
+```
+(__Source__: New York Times' [Coronavirus in the U.S.: Latest Map and Case Count](https://github.com/nytimes/covid-19-data))
+
+Montgomery county currently has the largest number of confirmed cases. But, it is also the largest county in terms of population. __When we look at infection rates (i.e., number of confirmed cases per 100,000 population), `r topincidencecounty` county has the highest rate currently__, because of [an outbreak at a nursing home](https://baltimore.cbslocal.com/2020/03/28/coronavirus-latest-66-residents-at-carroll-county-nursing-home-test-positive-for-covid-19/) (See Question 3).
+
+_Hover over each figure to see values and more options._
+```{r plotincidenceCounty, results='asis', fig.align="left", out.width="800px"}
+dtafig<-dtacounty%>%filter(date==latestdatecounty)%>%
+    select(date, county, cases, pop)%>%
+    mutate(incidence=round(cases*100000/pop), 0)
+
+dtafig$county<-factor(dtafig$county, 
+                    levels = unique(dtafig$county) 
+                    [order(dtafig$incidence, decreasing = TRUE)])
+
+fig<-plot_ly(dtafig, x = ~county, y = ~incidence, 
+             type="bar", marker = list(color = 'rgb(252,141,89)')) %>%
+        layout(
+            title ="Incidence rate by county in Maryland",
+            xaxis = list(title = "County",  
+                         autotick = FALSE,
+                         showticklabels = TRUE, 
+                         tickfont = list(size=11), 
+                         tickangle=-90
+                         ),
+            yaxis = list(title = "Number of confirmed cases per 100,000 population")
+            )
+fig
+```
+(__Source__: New York Times' [Coronavirus in the U.S.: Latest Map and Case Count](https://github.com/nytimes/covid-19-data), US Census Bureau's [County Population Totals: 2010-2019](https://www.census.gov/data/tables/time-series/demo/popest/2010s-counties-total.html#par_textimage))
+
+```{r}
+#####__Q 1. When and where was COVID-19 first reported in Maryland?__ 
+firstdatestate<-mean(dtacounty$firstdatestate)
+
+firstcountyname<-dtacounty%>%filter(firstcounty==TRUE)%>%select(county)
+firstcountyname<-firstcountyname$county
+
+#The first confirmed COVID-19 case was reported in __`r firstcountyname` county on `r firstdatestate`__. 
+```
+
 ---
 
 __Data sources__:  
-1. All data on number of cases for the state and counties come from New York Times' [Coronavirus in the U.S.: Latest Map and Case Count](https://github.com/nytimes/covid-19-data). Accessed on April 1, 2020, 12:32PM EDT. Numbers for the entire state of Maryland may be different from those in [Coronavirus COVID-19 Global Cases](https://www.arcgis.com/apps/opsdashboard/index.html#/85320e2ea5424dfaaa75ae62e5c06e61) by Center for Systems Science and Engineering at JHU, which currently does not publish county-level data. __For the latest state-level data, check out [Maryland COVID-19 Case Map Dashboard](https://coronavirus.maryland.gov/)__ by Maryland Department of Health.   
-2. All data on population come from US Census Bureau's [County Population Totals: 2010-2019](https://www.census.gov/data/tables/time-series/demo/popest/2010s-counties-total.html#par_textimage). Accessed on March 29, 2020. 
+1. All COVID-19 data for counties come from New York Times' [Coronavirus in the U.S.: Latest Map and Case Count](https://github.com/nytimes/covid-19-data). Accessed on April 4, 2020, 3:25PM EDT. Numbers for the entire state of Maryland, aggregated up using county data, may be different from those in [Coronavirus COVID-19 Global Cases](https://www.arcgis.com/apps/opsdashboard/index.html#/85320e2ea5424dfaaa75ae62e5c06e61) by Center for Systems Science and Engineering at JHU, which currently does not publish county-level data.   
+2. All COVID-19 data for Maryland disaggregated by age and sex come from [Maryland COVID-19 Case Map Dashboard](https://coronavirus.maryland.gov/)__ by Maryland Department of Health. Accessed on April 4, 2020.      
+3. All data on county population come from US Census Bureau's [County Population Totals: 2010-2019](https://www.census.gov/data/tables/time-series/demo/popest/2010s-counties-total.html#par_textimage). Accessed on March 29, 2020.   
+4. Data on Maryland population by age and sex come from Maryland Department of Planning's [Population Estimates by Race and Hispanic Origin for July 1, 2018](https://planning.maryland.gov/MSDC/Pages/pop_estimate/CensPopEst.aspx). Accessed on April 1, 2020.    
 
 ---
 
