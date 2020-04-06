@@ -167,7 +167,7 @@ cfrMD<-round(100*deathsMD/casesMD, 1)
 
 latestdatecounty<-max(dtacounty$date)
 ```
-As of `r latestdateMD`, __`r deathsMD` COVID-19-positive deaths have occurred. This means `r cfrMD` percent of all confirmed cases__. Below figure shows mortality by county - in terms of both absolute number and rate, as of `r latestdatecounty`. 
+As of `r latestdateMD`, __`r deathsMD` COVID-19-positive deaths have occurred__, according to Maryland Department of Health. __This means `r cfrMD` percent of all confirmed cases__. Below figure shows mortality by county - in terms of both absolute number (blue bars) and rate (orange bars), as of `r latestdatecounty`. 
 
 ```{r plotdeathsCounty, results='asis', fig.align="left", out.width="800px"}
 dtafig<-dtacounty%>%filter(date==latestdatecounty)%>%filter(deaths>0)%>%select(date, county, deaths, cases)%>%mutate(cfr=round(100*deaths/cases, 1)) 
@@ -286,10 +286,11 @@ As of `r latestdateMD`, __a total of `r totaltestMD` tests have been conducted. 
 * __[In South Korea](https://rpubs.com/YJ_Choi/COVID19_SouthKorea)__ (a country with a strict and consistent trace-test-isolation strategy since the beginning of the epidemic), __8 out of 1000 people have been tested__ as of April 2. Infection rate in South Korea was 19 per 100,000 population, less than half of Maryland's rate (see Question 2). 
 
 ```{r plotTrendNewTestsMD, results='asis', fig.align="left", out.width="800px"}
-dtafig<-dtaMD%>%select(date, newtests)
+dtafig<-dtaMD%>%select(date, newtests, newcases)
 
-plot_ly(dtafig, x=~date, y=~newtests, 
-        type = 'bar' ) %>%
+plot_ly(dtafig, x=~date, y=~newtests, type = 'bar') %>%
+    #, name="Total tests"     
+    #add_trace(y=dtafig$newcases, name = 'Positive tests') %>%
         layout(
             annotations= list(x = "2020-03-22",
                               y = 1750,
@@ -320,7 +321,7 @@ incidencetopage<-dtabyage%>%filter(latest==TRUE)%>%
     filter(incidence==max(incidence))%>%select(agegroup)
 incidencetopage<-incidencetopage$agegroup
 ```
-COVID-19 has affected __adult population relatively evenly across different ages__. The incidence rate is highest, `r incidencetop` per 100000 population, among people between `r incidencetopage` years of age. But, the rates are about or above 70 in all age groups between 30 and 79. 
+COVID-19 has affected __adult population relatively evenly across different ages__. The incidence rate is highest, `r incidencetop` per 100000 population, among people between `r incidencetopage` years of age. But, the rates are about or above 80 in all age groups between 30 and 79. 
 
 ```{r plotincidencebyage, results='asis', fig.align="left", out.width="600px"}
 dtafig<-dtabyage%>%filter(latest==TRUE)
@@ -490,7 +491,7 @@ fig
 ```
 (__Source__: New York Times' [Coronavirus in the U.S.: Latest Map and Case Count](https://github.com/nytimes/covid-19-data))
 
-Montgomery county currently has the largest number of confirmed cases. But, it is also the largest county in terms of population. __When we look at infection rates (i.e., number of confirmed cases per 100,000 population), `r topincidencecounty` county has the highest rate currently__, because of [an outbreak at a nursing home](https://baltimore.cbslocal.com/2020/03/28/coronavirus-latest-66-residents-at-carroll-county-nursing-home-test-positive-for-covid-19/) (See Question 3).
+__When we look at infection rates (i.e., number of confirmed cases per 100,000 population), `r topincidencecounty` county still has the highest rate currently__, because of [an outbreak at a nursing home](https://baltimore.cbslocal.com/2020/03/28/coronavirus-latest-66-residents-at-carroll-county-nursing-home-test-positive-for-covid-19/) (See Question 3).
 
 _Hover over each figure to see values and more options._
 ```{r plotincidenceCounty, results='asis', fig.align="left", out.width="800px"}
@@ -531,8 +532,8 @@ firstcountyname<-firstcountyname$county
 ---
 
 __Data sources__:  
-1. All COVID-19 data for counties come from New York Times' [Coronavirus in the U.S.: Latest Map and Case Count](https://github.com/nytimes/covid-19-data). Accessed on April 4, 2020, 3:25PM EDT. Numbers for the entire state of Maryland, aggregated up using county data, may be different from those in [Coronavirus COVID-19 Global Cases](https://www.arcgis.com/apps/opsdashboard/index.html#/85320e2ea5424dfaaa75ae62e5c06e61) by Center for Systems Science and Engineering at JHU, which currently does not publish county-level data.   
-2. All COVID-19 data for Maryland disaggregated by age and sex come from [Maryland COVID-19 Case Map Dashboard](https://coronavirus.maryland.gov/)__ by Maryland Department of Health. Accessed on April 4, 2020.      
+1. All COVID-19 data for counties come from New York Times' [Coronavirus in the U.S.: Latest Map and Case Count](https://github.com/nytimes/covid-19-data). Accessed on April 5, 2020, 1:47PM EDT. 
+2. All COVID-19 data for Maryland disaggregated by age and sex come from [Maryland COVID-19 Case Map Dashboard](https://coronavirus.maryland.gov/) by Maryland Department of Health. Accessed on April 5, 2020.      
 3. All data on county population come from US Census Bureau's [County Population Totals: 2010-2019](https://www.census.gov/data/tables/time-series/demo/popest/2010s-counties-total.html#par_textimage). Accessed on March 29, 2020.   
 4. Data on Maryland population by age and sex come from Maryland Department of Planning's [Population Estimates by Race and Hispanic Origin for July 1, 2018](https://planning.maryland.gov/MSDC/Pages/pop_estimate/CensPopEst.aspx). Accessed on April 1, 2020.    
 
