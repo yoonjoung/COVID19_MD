@@ -16,3 +16,4 @@ B. Data folders
 - DataMD  
 --- MDHealthDepartmentDashboard.xlsx, Maryland data disaggregated by age, sex, and county    
 --- CNTY-PopEst-2018.xlsx, Maryland population by age and sex from the state Department of Planning
+--- table1a.xlsx, Maryland population by race from the state Department of Planning
