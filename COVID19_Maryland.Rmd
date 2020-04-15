@@ -150,8 +150,7 @@ dtapopbyrace<-read_excel("C:/Users/YoonJoung Choi/Dropbox/0 Project/COVID19_US/D
     filter(is.na(pop)==F)%>%
     mutate(
         popMD=as.numeric(popMD),
-        pop=round(popMD*pctpop, 0), 
-        race=ifelse(race=="Hispanic", "Other", race)
+        pop=round(popMD*pctpop, 0)
     )%>%select(race, pop)%>%
     group_by(race)%>%summarize_all(funs(sum))%>%filter(is.na(pop)==F)
 
@@ -168,6 +167,7 @@ dtabyrace<-dtabyrace%>%
     )%>%
     select(date, race, cases, deaths)
 
+table(dtapopbyrace$race)
 table(dtabyrace$race)
 
 dim(dtabyrace)
@@ -201,7 +201,7 @@ _See footnote for further information about data sources. More questions and ans
 
 #####__Q 6. How has it affected population across different races? (NEW)__
 
-The Maryland Department of Health started publishing data by race (i.e., the number of cases and deaths by race) on April 9th, following an upsetting report about racial disparity in COVID mortality in the US: [higher morality in states with higher proportions of black population](https://www.washingtonpost.com/nation/2020/04/07/coronavirus-is-infecting-killing-black-americans-an-alarmingly-high-rate-post-analysis-shows/?arc404=true). Further data - specifically disaggregated by individual people's race, beyond the state-level analysis - are crucial to monitor and understand the disparity. As a resident of Maryland, I am very proud of the state's rapid action to publish race data!
+The Maryland Department of Health started publishing data by race (i.e., the number of cases and deaths by race) on April 9th, following an upsetting report about racial disparity in COVID mortality in the US: [higher morality in states with higher proportions of black population](https://www.washingtonpost.com/nation/2020/04/07/coronavirus-is-infecting-killing-black-americans-an-alarmingly-high-rate-post-analysis-shows/?arc404=true). Further data - specifically disaggregated by individual people's race, beyond the state-level analysis - are crucial to monitor and understand the disparity. Also, though initially unavailable, __a separate category for Hispanic popualtion is published on April 15__. As a resident of Maryland, I am very proud of the state's rapid action to publish race data!
 
 ```{r}
 incidencetop<-dtabyrace%>%filter(latest==TRUE)%>%
@@ -220,7 +220,7 @@ allcases<-dtabyrace%>%filter(latest==TRUE)%>%select(cases)%>%
 missingracepct<-round(100*missingracecases/allcases, 0)
 
 ```
-However, note that __`r missingracepct` % of cases do not have race information (i.e., "missing" race). Also, there is no separate category for Hispanic popualtion, third largeest in the state__. It is unclear if Hispanic population is included in "Missing" or "Other". 
+However, note that __`r missingracepct` % of cases do not have race information (i.e., "missing" race)__. This is likely because [private labs are not required to report race](https://www.baltimoresun.com/coronavirus/bs-md-coronavirus-race-data-20200409-ffim7y4bljcz3hjk4dmt773mp4-story.html). 
 
 _Hover over each figure to see values and more options._
 ```{r plotbyracecases, results='asis', fig.align="left", out.width="500px"}
@@ -237,9 +237,11 @@ plot_ly(dtafig, x=~race, y=~cases, type = 'bar', name="confirmed cases")%>%
             )
 ```
 
-__In terms of rates, incidence is substantially higher among African American population__ (blue bars), but __mortality rate is highest among Asian Americans. Mortality rates are currently similar between black and white populations in Maryland__ (orange bars). This implies that __the disproportionately higher number of deaths among African American popoulation in Maryland is because of the higher rate of infection among African Americans, not because of higher risk of dying among those Afrian Americans who are infected__. At the same time, though the infections rate is lower, mortality risk is higher among Asian Americans in Maryland.   
+Now with Hispanic population disaggregated from "other", the pattern of incidence and mortality by race/ethnicity can be examined better. __In terms of rates, incidence is substantially higher among Other, African American, and Hispanic population__ (blue bars). Currently, __mortality rate is highest among White and Asian Americans__ (orange bars). This implies that __the disproportionately higher number of deaths among African American population in Maryland is because of the higher rate of infection among African Americans, not because of higher risk of dying among those African Americans who are infected__. At the same time, though the infection rate is lower, mortality risk is higher among Asian Americans in Maryland.   
 
-To understand reasons behind this, we will need to learn more about characteristics of patients by race (e.g., Do Asian Americans with COVID tend to be older and/or have existing conditions in Maryland?) and any differences in access to health care by race among COVID patients. Also, what can we do to reduce the higher infection rate among African Americans in Maryland? Finally and importantly, if and when we have better data on race (i.e., less cases with missing race information), the findings on racial disparity can change. 
+To understand reasons behind this, we will need to learn more about characteristics of patients by race (e.g., Do Asian Americans with COVID tend to be older and/or have existing conditions in Maryland?) and any differences in access to health care by race among COVID patients. Also, what can we do to reduce the higher infection rate among African Americans and Hispanic population in Maryland? Finally and importantly, if and when we have better data on race (i.e., less cases with missing race information), the findings on racial disparity can change. 
+
+(__Note__: In Maryland, "Other" population includes: American Indian and Alaska Native, Native Hawaiian and Other Pacific Islander, and 'Two or more races'. It accounts for about 3% of total population in the state.)
 
 _Hover over each figure to see values and more options._
 ```{r plotbyracerates, results='asis', fig.align="left", out.width="800px"}
@@ -401,16 +403,9 @@ latestnewtestsNY<-"15,694"
 ```
 This is a very important question, since the magnitude of testing over time is critical information to understand the epidemic. Unfortunately, I haven't found good trend data on testing in Maryland, and decided to track [COVID-19 Case Map Dashboard](https://coronavirus.maryland.gov/) by Maryland Department of Health starting from March 31, 2020. However, _I would apprecite very much if anyone can share testing trend data in Maryland!_. 
 
-As of `r latestdateMD` 10:00AM, __a total of `r totaltestMD` tests have been conducted. This means `r testrateMD` tests have been conducted in every 1000 people. Below shows the number of new tests by date in Maryland__ - well, only starting from March 31st. 
+As of `r latestdateMD` 10:00AM, __a total of `r totaltestMD` tests have been conducted__. There are about 6 million people in Maryland, and this means __`r testrateMD` tests have been conducted in every 1000 people. Below shows the number of new tests by date in Maryland__ - well, only starting from March 31st. 
 
 [A large spike on the number of new tests on April 7th appears to be artifact of delayed processes in laboratory and/or data entry, not actual changes in the number of tests](https://www.baltimoresun.com/coronavirus/bs-md-coronavirus-update-wednesday-20200408-eexgmqygnfetdcp3xymhjpxab4-story.html).   
-
-Meanwhile, for comparison:   
-
-* __[In New York state](https://coronavirus.health.ny.gov/home), `r testrateNY` out of 1000 people have been tested__ as of April 2. FYI, infection rate in New York State was [471 per 100,000 population](https://www.nytimes.com/interactive/2020/us/coronavirus-us-cases.html#states) as of April 2, roughly 10 times higher than in Maryland (see Question 2). 
-
-* __[In South Korea](https://rpubs.com/YJ_Choi/COVID19_SouthKorea)__ (a country with a strict and consistent trace-test-isolation strategy since the beginning of the epidemic), __8 out of 1000 people have been tested__ as of April 2. Infection rate in South Korea was 19 per 100,000 population, less than half of Maryland's rate (see Question 2). 
-
 ```{r plotTrendNewTestsMD, results='asis', fig.align="left", out.width="800px"}
 dtafig<-dtaMD%>%select(date, newtests, newcases)
 
@@ -419,8 +414,8 @@ plot_ly(dtafig, x=~date, y=~newtests, type = 'bar') %>%
     #add_trace(y=dtafig$newcases, name = 'Positive tests') %>%
         layout(
             annotations= list(x = "2020-03-22",
-                              y = 1750,
-                              text = "Does anyone have test trend data in Maryland?!",
+                              y = 5500,
+                              text = "Does anyone have test trend data before March 31?!",
                               font = list(color = 'rgb(136,86,167)', size = 18),
                               xref = "x",
                               yref = "y",
@@ -439,15 +434,20 @@ plot_ly(dtafig, x=~date, y=~newtests, type = 'bar') %>%
 #####__Q 3. What age groups are affected?__ 
 
 ```{r}
-incidencetop<-dtabyage%>%filter(latest==TRUE)%>%
+incidencetop<-dtabyage%>%filter(latest==TRUE)%>%filter(is.na(age)==FALSE)%>%
     filter(incidence==max(incidence))%>%select(incidence)%>%
-    summarize_all(funs(max))
+    summarize_all(funs(mean))
                             
-incidencetopage<-dtabyage%>%filter(latest==TRUE)%>%
+incidencetopage<-dtabyage%>%filter(latest==TRUE)%>%filter(is.na(age)==FALSE)%>%
     filter(incidence==max(incidence))%>%select(agegroup)
 incidencetopage<-incidencetopage$agegroup
+
+
+incidencetop
+incidencetopage
+
 ```
-COVID-19 has affected __adult population relatively evenly across different ages__. The incidence rate is highest, `r incidencetop` per 100000 population, among people between `r incidencetopage` years of age. But, the rates are about or above 150 in all age groups 30 and above. 
+COVID-19 has affected __adult population relatively evenly across different ages__. The incidence rate is highest, `r incidencetop` per 100,000 population, among people `r incidencetopage` years of age. But, the rates are about or above 200 in all age groups 30 and above. 
 
 ```{r plotincidencebyage, results='asis', fig.align="left", out.width="600px"}
 dtafig<-dtabyage%>%filter(latest==TRUE)
@@ -479,7 +479,7 @@ latestdate<-max(dtafig$date)
 latestnewcases<-dtafig%>%filter(date==max(date))%>%select(newcases)%>%summarize_all(funs(mean)) 
 previousnewcases<-dtafig%>%arrange(date)%>%mutate(previousnewcases=lag(newcases))%>%filter(date==max(date))%>%select(previousnewcases)%>%summarize_all(funs(mean)) 
 ```
-Since testing capacity has been low, we _cannot_ confidently answer this question. Nevertheless, we can see __the number of NEW confirmed cases each day__. The first figure is for the entire state. We want to see the number of new infections to be stable more or less, without sudden and large increases. __On `r latestdate`, `r latestnewcases` new cases were confirmed, compared to `r previousnewcases` on the previous date__. The peak on March 28th was due to new cases in Carroll county on March 28 - see the second figure below.  
+Since testing capacity has been low, we _cannot_ confidently answer this question. Nevertheless, we can see __the number of NEW confirmed cases each day__. The first figure is for the entire state. We want to see the number of new infections to be stable more or less, without sudden and large increases. __On `r latestdate`, `r latestnewcases` new cases were confirmed, compared to `r previousnewcases` on the previous date__. The (now relatively small) peak on March 28th was due to new cases in Carroll county on March 28 - see the second figure below.  
 
 [The spike of new cofirmed cases on April 8th may be artifact of delayed processes in laboratory and/or data entry, not an actual increase on this speciic date](https://www.baltimoresun.com/coronavirus/bs-md-coronavirus-update-wednesday-20200408-eexgmqygnfetdcp3xymhjpxab4-story.html).
 
@@ -636,6 +636,7 @@ popstate<-dtapopcounty%>%filter(county=="Maryland")%>%select(pop)%>%summarize_al
 latestdateMD<-max(dtaMD$date)
 casesMD<-dtaMD%>%filter(date==max(date))%>%select(cases)%>%summarize_all(funs(max))
 incidencerateMD<-round(100000*casesMD/popstate, 0)
+casesMD<-as.character(casesMD)
 
 topincidencecounty<-dtacounty%>%filter(date==latestdatecounty)%>%mutate(incidence=round(cases*100000/pop), 0)%>%filter(incidence==max(incidence)) %>%select(county)
 topincidencecounty<-topincidencecounty
@@ -668,7 +669,7 @@ fig
 ```
 (__Source__: New York Times' [Coronavirus in the U.S.: Latest Map and Case Count](https://github.com/nytimes/covid-19-data))
 
-__When we look at infection rates (i.e., number of confirmed cases per 100,000 population), `r topincidencecounty` county now has the highest rate currently__, surpassing Carroll county which had [an outbreak at a nursing home](https://baltimore.cbslocal.com/2020/03/28/coronavirus-latest-66-residents-at-carroll-county-nursing-home-test-positive-for-covid-19/) and the highest incidence rate for a while (See Question 3). Incidence rate is increasing much faster in the Prince George's county than other counties in the state.  
+__When we look at infection rates (i.e., number of confirmed cases per 100,000 population), `r topincidencecounty` county now has the highest rate currently__. 
 
 _Hover over each figure to see values and more options._
 ```{r plotincidenceCounty, results='asis', fig.align="left", out.width="800px"}
@@ -709,8 +710,8 @@ firstcountyname<-firstcountyname$county
 ---
 
 __Data sources__:  
-1. All COVID-19 data for counties come from New York Times' [Coronavirus in the U.S.: Latest Map and Case Count](https://github.com/nytimes/covid-19-data). Accessed on April 8, 2020.    
-2. All COVID-19 data for Maryland disaggregated by age and sex come from [Maryland COVID-19 Case Map Dashboard](https://coronavirus.maryland.gov/) by Maryland Department of Health. This dashboard presents latest numbers as of 10:00AM on each day. Accessed on April 8, 2020.      
+1. All COVID-19 data for counties come from New York Times' [Coronavirus in the U.S.: Latest Map and Case Count](https://github.com/nytimes/covid-19-data). Accessed on `r date`.    
+2. All COVID-19 data for Maryland disaggregated by age and sex come from [Maryland COVID-19 Case Map Dashboard](https://coronavirus.maryland.gov/) by Maryland Department of Health. This dashboard presents latest numbers as of 10:00AM on each day. Accessed on `r date`.      
 3. All data on county population come from US Census Bureau's [County Population Totals: 2010-2019](https://www.census.gov/data/tables/time-series/demo/popest/2010s-counties-total.html#par_textimage). Accessed on March 29, 2020.   
 4. Data on Maryland population by age and sex come from Maryland Department of Planning's [Population Estimates by Race and Hispanic Origin for July 1, 2018](https://planning.maryland.gov/MSDC/Pages/pop_estimate/CensPopEst.aspx). Accessed on April 1, 2020.    
 
