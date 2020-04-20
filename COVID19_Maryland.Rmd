@@ -404,13 +404,16 @@ popstateNY<-as.vector(19500000)
 testrateNY<-round(1000*totaltestNY/popstateNY, 0)
 latestnewtestsNY<-"15,694"
 ```
-This is a very important question, since the magnitude of testing over time is critical information to understand the epidemic. Unfortunately, I haven't found good trend data on testing in Maryland, and decided to track [COVID-19 Case Map Dashboard](https://coronavirus.maryland.gov/) by Maryland Department of Health starting from March 31, 2020. However, _I would apprecite very much if anyone can share testing trend data in Maryland!_. 
+This is a very important question, since the magnitude of testing over time is critical information to understand the epidemic. I got trend data on testing in Maryland from [COVID-19 Case Map Dashboard](https://coronavirus.maryland.gov/) by Maryland Department of Health also [COVID Tracking Project](https://covidtracking.com/data/state/maryland#historical) for earlier data. Still, data on the number of new tests are not available between 3/12 and 3/28. 
 
-As of `r latestdateMD` 10:00AM, __a total of `r totaltestMD` tests have been conducted__. There are about 6 million people in Maryland, and this means __`r testrateMD` tests have been conducted in every 1000 people. Below shows the number of new tests by date in Maryland__ - well, only starting from March 31st. 
+As of `r latestdateMD` 10:00AM, __a total of `r totaltestMD` tests have been conducted__. There are about 6 million people in Maryland, and this means __`r testrateMD` tests have been conducted in every 1000 people. Below shows the number of new tests by date in Maryland__. 
 
 [A large spike on the number of new tests on April 7th appears to be artifact of delayed processes in laboratory and/or data entry, not actual changes in the number of tests](https://www.baltimoresun.com/coronavirus/bs-md-coronavirus-update-wednesday-20200408-eexgmqygnfetdcp3xymhjpxab4-story.html).   
 ```{r plotTrendNewTestsMD, results='asis', fig.align="left", out.width="800px"}
-dtafig<-dtaMD%>%select(date, newtests, newcases)
+dtafig<-dtaMD%>%select(date, cases, negativetest, newtests)%>%
+    mutate(notestdata=(date>as.Date("2020-03-11") & date< as.Date("2020-03-29")) ,
+           newtests=ifelse(notestdata==TRUE, NA, newtests)
+    )
 
 plot_ly(dtafig, x=~date, y=~newtests, type = 'bar') %>%
     #, name="Total tests"     
@@ -418,8 +421,8 @@ plot_ly(dtafig, x=~date, y=~newtests, type = 'bar') %>%
         layout(
             annotations= list(x = "2020-03-22",
                               y = 5500,
-                              text = "Does anyone have test trend data before March 31?!",
-                              font = list(color = 'rgb(136,86,167)', size = 18),
+                              text = "Total number of new tests not available between 3/12-3/28",
+                              font = list(color = 'gray', size = 12),
                               xref = "x",
                               yref = "y",
                               showarrow = FALSE),
@@ -450,7 +453,7 @@ incidencetop
 incidencetopage
 
 ```
-COVID-19 has affected __adult population relatively evenly across different ages__ (above 200 per 100,000 population in all age groups 30 and above). Recently, however, the incidence rate has increased more rapidly among those 80 and older. Currently, the incidence rate is highest, `r incidencetop` per 100,000 population, among people `r incidencetopage` years of age.  
+COVID-19 has affected __adult population relatively evenly across different ages__ (approaching or above 300 per 100,000 population in all age groups 30 and above). Recently, however, the incidence rate has increased more rapidly among those 80 and older. Currently, the incidence rate is highest, `r incidencetop` per 100,000 population, among people `r incidencetopage` years of age.  
 
 ```{r plotincidencebyage, results='asis', fig.align="left", out.width="600px"}
 dtafig<-dtabyage%>%filter(latest==TRUE)
