@@ -44,7 +44,10 @@ dtapopcounty<-dtapopcounty%>%select(stname, ctyname, popestimate2019)%>%
 ```
 
 ```{r dataByCounty}
-dtacounty<-read.csv("C:/Users/YoonJoung Choi/Dropbox/0 Project/COVID19_US/DataNYTimes/us-counties.csv")%>%
+url<-"https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv"
+dtacases<-read.csv(url)
+
+dtacounty<-read.csv(url)%>%
     mutate(
         date=as.Date(as.character(date)),
         state=as.character(state),
@@ -447,7 +450,7 @@ incidencetop
 incidencetopage
 
 ```
-COVID-19 has affected __adult population relatively evenly across different ages__. The incidence rate is highest, `r incidencetop` per 100,000 population, among people `r incidencetopage` years of age. But, the rates are about or above 200 in all age groups 30 and above. 
+COVID-19 has affected __adult population relatively evenly across different ages__ (above 200 per 100,000 population in all age groups 30 and above). Recently, however, the incidence rate has increased more rapidly among those 80 and older. Currently, the incidence rate is highest, `r incidencetop` per 100,000 population, among people `r incidencetopage` years of age.  
 
 ```{r plotincidencebyage, results='asis', fig.align="left", out.width="600px"}
 dtafig<-dtabyage%>%filter(latest==TRUE)
@@ -579,7 +582,9 @@ listx<- list(title = "",
     temp<-dtafig%>%filter(county==countylist[8])
     fig8<- plot_ly(temp, x=~date, y=~newcases, type = 'bar', name=countylist[8])%>%layout(xaxis=listx)    
     temp<-dtafig%>%filter(county==countylist[9])
-    fig9<- plot_ly(temp, x=~date, y=~newcases, type = 'bar', name=countylist[9])%>%layout(xaxis=listx)        
+    fig9<- plot_ly(temp, x=~date, y=~newcases, type = 'bar', name=countylist[9])%>%layout(xaxis=listx)      
+    temp<-dtafig%>%filter(county==countylist[10])
+    fig10<- plot_ly(temp, x=~date, y=~newcases, type = 'bar', name=countylist[10])%>%layout(xaxis=listx)           
 
 listx<- list(title = "Date",  
              font=list(size=10),
@@ -593,7 +598,7 @@ listy<- list(title = "Number of new confirmed cases")
 listlegend <- list(font=list(size=10), orientation = "h",   
                         xanchor = "center", x=0.5, y=-0.15)
 
-subplot(fig1 , fig2, fig3, fig4, fig5, fig6, fig7, fig8, fig9,
+subplot(fig1 , fig2, fig3, fig4, fig5, fig6, fig7, fig8, fig9, fig10,
         nrows = 3, shareX = TRUE )%>%
     layout(title = c("Trend of daily new confirmed COVID-19 cases by county, among counties with 150+ cases"),
            xaxis=listx,  yaxis = listy, legend= listlegend)
@@ -638,8 +643,9 @@ casesMD<-dtaMD%>%filter(date==max(date))%>%select(cases)%>%summarize_all(funs(ma
 incidencerateMD<-round(100000*casesMD/popstate, 0)
 casesMD<-as.character(casesMD)
 
-topincidencecounty<-dtacounty%>%filter(date==latestdatecounty)%>%mutate(incidence=round(cases*100000/pop), 0)%>%filter(incidence==max(incidence)) %>%select(county)
+topincidencecounty<-dtacounty%>%filter(date==latestdatecounty)%>%mutate(incidence=round(cases*100000/pop), 0)%>%filter(county!="Unknown")%>%filter(incidence==max(incidence)) %>%select(county)
 topincidencecounty<-topincidencecounty
+topincidencecounty
 
 ```
 As of `r latestdateMD` 10:00AM, __`r casesMD` confirmed cases have been reported in Maryland__, according to Maryland Department of Health. This means there are __`r incidencerateMD` people with confirmed COVID-19 per 100,000 population in the state__. 
