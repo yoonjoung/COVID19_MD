@@ -92,6 +92,7 @@ dtaMD<-dtaMD%>%
         cases=as.numeric(str_replace_all(stri_trim_both(cases), fixed(","),"")),
         negativetest=as.numeric(str_replace_all(stri_trim_both(negativetest), fixed(","),"")),
         deaths=as.numeric(str_replace_all(stri_trim_both(deaths), fixed(","),"")),
+        probabledeaths=as.numeric(str_replace_all(stri_trim_both(probabledeaths), fixed(","),"")),
         hospitalizations=as.numeric(str_replace_all(stri_trim_both(hospitalizations), fixed(","),"")),
         releasedfromisolation=as.numeric(str_replace_all(stri_trim_both(releasedfromisolation), fixed(","),"")),
         totaltests=cases+negativetest
@@ -166,9 +167,10 @@ dtabyrace<-dtabyrace%>%
     mutate(    
         race=grouplabel, 
         cases=as.numeric(cases),
-        deaths=as.numeric(deaths)
+        deaths=as.numeric(deaths),
+        probabledeaths=as.numeric(probabledeaths)
     )%>%
-    select(date, race, cases, deaths)
+    select(date, race, cases, deaths, probabledeaths)
 
 table(dtapopbyrace$race)
 table(dtabyrace$race)
@@ -182,7 +184,9 @@ dtabyrace<-dtabyrace%>%
         incidence=round(cases*100000/pop, 0), 
         temp=max(date),
         latest=date==temp,
-        cfr=round(100*deaths/cases, 1)
+        cfr=round(100*deaths/cases, 1),
+        mortality=round(100000*(deaths)/pop, 1),
+        mortalityprobable=round(100000*(probabledeaths)/pop, 1)
     )%>%select(-temp)
 ```
 
@@ -202,7 +206,7 @@ _See footnote for further information about data sources. More questions and ans
 
 ---
 
-#####__Q 6. How has it affected population across different races? (NEW)__
+#####__Q 6. How has it affected population across different races?__
 
 The Maryland Department of Health started publishing data by race (i.e., the number of cases and deaths by race) on April 9th, following an upsetting report about racial disparity in COVID mortality in the US: [higher morality in states with higher proportions of black population](https://www.washingtonpost.com/nation/2020/04/07/coronavirus-is-infecting-killing-black-americans-an-alarmingly-high-rate-post-analysis-shows/?arc404=true). Further data - specifically disaggregated by individual people's race, beyond the state-level analysis - are crucial to monitor and understand the disparity. Also, though initially unavailable, __a separate category for Hispanic popualtion is published on April 15__. As a resident of Maryland, I am very proud of the state's rapid action to publish race data!
 
@@ -240,7 +244,7 @@ plot_ly(dtafig, x=~race, y=~cases, type = 'bar', name="confirmed cases")%>%
             )
 ```
 
-Now with Hispanic population disaggregated from "other", the pattern of incidence and mortality by race/ethnicity can be examined better. __In terms of rates, incidence is substantially higher among Other, African American, and Hispanic population__ (blue bars). Currently, __mortality rate is highest among White and Asian Americans__ (orange bars). This implies that __the disproportionately higher number of deaths among African American population in Maryland is because of the higher rate of infection among African Americans, not because of higher risk of dying among those African Americans who are infected__. At the same time, though the infection rate is lower, mortality risk is higher among Asian Americans in Maryland.   
+Now with Hispanic population disaggregated from "other", the pattern of incidence and mortality by race/ethnicity can be examined better. __In terms of rates, incidence is substantially higher among Other, African American, and Hispanic population__ (blue bars). Currently, __mortality, specifically the case fatality rate, is highest among White and Asian Americans__ (orange bars). This implies that __the disproportionately higher number of deaths among African American population in Maryland is because of the higher rate of infection among African Americans, not because of higher risk of dying among those African Americans who are infected__. At the same time, though the infection rate is lower, mortality risk is higher among Asian Americans in Maryland.   
 
 To understand reasons behind this, we will need to learn more about characteristics of patients by race (e.g., Do Asian Americans with COVID tend to be older and/or have existing conditions in Maryland?) and any differences in access to health care by race among COVID patients. Also, what can we do to reduce the higher infection rate among African Americans and Hispanic population in Maryland? Finally and importantly, if and when we have better data on race (i.e., less cases with missing race information), the findings on racial disparity can change. 
 
@@ -279,7 +283,7 @@ figcfr<-plot_ly(dtafig, x=~race, y=~cfr, type = 'bar' , name="Deaths per 100 cas
             )
 
 subplot(figincidencerate, figcfr, nrows=1, shareY = FALSE, titleY = TRUE) %>%
-        layout(  title ="Cumulative incidence and mortality rates by race in Maryland", 
+        layout(  title ="Cumulative incidence and case fatality rate rates by race in Maryland", 
                  showlegend=FALSE  )
 ```
 (__Source__: Maryland Department of Health's [Maryland COVID-19 Case Map Dashboard](https://coronavirus.maryland.gov/), and Maryland Department of Planning's [Population Estimates by Race and Hispanic Origin for July 1, 2018](https://planning.maryland.gov/MSDC/Pages/pop_estimate/CensPopEst.aspx))
@@ -294,7 +298,9 @@ cfrMD<-round(100*deathsMD/casesMD, 1)
 
 latestdatecounty<-max(dtacounty$date)
 ```
-As of `r latestdateMD` 10:00AM, __`r deathsMD` COVID-19-positive deaths have occurred__, according to Maryland Department of Health. __This means `r cfrMD` percent of all confirmed cases__. Below figure shows mortality by county - in terms of both absolute number (blue bars) and rate (orange bars) as of `r latestdatecounty`. 
+As of `r latestdateMD` 10:00AM, __`r deathsMD` COVID-19-positive deaths have occurred__, according to Maryland Department of Health. __This means `r cfrMD` percent of all confirmed cases__. Below figure shows mortality by county - in terms of both absolute number (blue bars) and case fatality rate (orange bars) as of `r latestdatecounty`. 
+
+(_Note: MD Health Department has published the number of probably COVID deaths since April 15. Those deaths have not been included in analyses here_.)
 
 ```{r plotdeathsCounty, results='asis', fig.align="left", out.width="800px"}
 dtafig<-dtacounty%>%filter(date==latestdatecounty)%>%filter(deaths>0)%>%select(date, county, deaths, cases)%>%mutate(cfr=round(100*deaths/cases, 1)) 
@@ -323,7 +329,7 @@ dtafig$county<-factor(dtafig$county,
 fig2<-plot_ly(dtafig, x = ~county, y = ~cfr, type="bar",
               name="Deaths per 100 cases (%)") %>%
         layout(
-            title ="COVID-19 mortality rate by county in Maryland",
+            title ="COVID-19 case fatality rate by county in Maryland",
             xaxis = list(  
                          autotick = FALSE,
                          showticklabels = TRUE, 
@@ -344,7 +350,7 @@ subplot(fig1, fig2, titleY = TRUE) %>%
 ```
 (__Source__: New York Times' [Coronavirus in the U.S.: Latest Map and Case Count](https://github.com/nytimes/covid-19-data), US Census Bureau's [County Population Totals: 2010-2019](https://www.census.gov/data/tables/time-series/demo/popest/2010s-counties-total.html#par_textimage))
 
-Below chart shows the mortality trends, since March 18 when the first COVID-19 death was reported in Maryland. In countries severely affected by the epidemic before US, mortality rates increased rapidly in the beginning. Mortality rates then stabilized in some of the countries, depending on health systems' response.  
+Below chart shows the mortality trends, since March 18 when the first COVID-19 death was reported in Maryland. Globally in countries severely affected by the epidemic before US, case fatality rates increased rapidly in the beginning. The rates then stabilized in some of the countries, depending on health systems' response and characteristics of patient population.  
 ```{r plotcfrMDtrends, results='asis', fig.align="left", out.width="800px"}
 dtafig<-dtacounty%>%select(date, deaths, cases)%>%
     group_by(date)%>%
@@ -354,7 +360,7 @@ dtafig<-dtacounty%>%select(date, deaths, cases)%>%
 
 plot_ly(dtafig, x = ~date, y = ~cfr, type="bar") %>%
         layout(
-            title ="Trends of COVID-19 mortality rates in Maryland",
+            title ="Trends of COVID-19 case fatality rates in Maryland",
             xaxis = list( 
                          autotick = FALSE,
                          showticklabels = TRUE, 
@@ -437,7 +443,7 @@ plot_ly(dtafig, x=~date, y=~newtests, type = 'bar') %>%
 ```
 (__Source__: Maryland Department of Health's [Maryland COVID-19 Case Map Dashboard](https://coronavirus.maryland.gov/))
 
-#####__Q 3. What age groups are affected?__ 
+#####__Q 3. What age groups are affected? And, how has it changed over time? (NEW)__ 
 
 ```{r}
 incidencetop<-dtabyage%>%filter(latest==TRUE)%>%filter(is.na(age)==FALSE)%>%
@@ -453,7 +459,7 @@ incidencetop
 incidencetopage
 
 ```
-COVID-19 has affected __adult population relatively evenly across different ages__ (approaching or above 300 per 100,000 population in all age groups 30 and above). Recently, however, the incidence rate has increased more rapidly among those 80 and older. Currently, the incidence rate is highest, `r incidencetop` per 100,000 population, among people `r incidencetopage` years of age.  
+Initially, COVID-19 has affected __adult population relatively evenly across different ages__ (approaching or above 300 per 100,000 population in all age groups 30 and above). Recently, however, __the incidence rate has increased more rapidly among those 80 and older__ (see the second figure). Currently, the incidence rate is highest, `r incidencetop` per 100,000 population, among people `r incidencetopage` years of age.  
 
 ```{r plotincidencebyage, results='asis', fig.align="left", out.width="600px"}
 dtafig<-dtabyage%>%filter(latest==TRUE)
@@ -473,7 +479,40 @@ plot_ly(dtafig, x=~agegroup, y=~incidence,
 ```
 (__Source__: Maryland Department of Health's [Maryland COVID-19 Case Map Dashboard](https://coronavirus.maryland.gov/), and Maryland Department of Planning's [Population Estimates by Race and Hispanic Origin for July 1, 2018](https://planning.maryland.gov/MSDC/Pages/pop_estimate/CensPopEst.aspx))
 
-#####__Q 2. How fast has it been spreading? (NEW FIGURE ADDED)__ 
+```{r plotincidencebyagetrends, results='asis', fig.align="left", out.width="800px"}
+
+dtafig<-dtabyage%>%select(date, age, incidence)%>%
+    mutate(
+        age=paste0("incidence",age)
+    )%>%
+    arrange(date, age)%>% 
+    spread(age, incidence, fill = NA, convert = FALSE) 
+#head(dta, 20)
+#str(dta)
+
+fig <- plot_ly(dtafig, x=~date, y=~incidence20, name = "20-29", 
+               type = 'scatter', mode='lines',
+               line = list(color = c( "rgb(102,194,164)"))) %>% 
+    add_trace(y = ~incidence30, name = "30-39", line = list(color = c( "rgb(65,174,118)"))) %>% 
+    add_trace(y = ~incidence40, name = "40-49", line = list(color = c( "rgb(35,139,69)"))) %>% 
+    add_trace(y = ~incidence50, name = "50-59", line = list(color = c( "rgb(0,109,44)"))) %>% 
+    add_trace(y = ~incidence60, name = "60-69", line = list(color = c( "rgb(0,68,27)"))) %>% 
+    add_trace(y = ~incidence70, name = "70-79", line = list(color = c( "rgb(33,113,18)"))) %>% 
+    add_trace(y = ~incidence80, name = "80+", line = list(color = c( "rgb(239,59,44)"))) %>% 
+    layout(
+        title ="Trends of cumulative incidence rate by age group",
+        xaxis = list(title = ""), 
+        yaxis = list(title = "Number of confirmed cases (per 100,000 population)",
+                     titlefont=list(size=12)), 
+        legend = list(font=list(size=10), traceorder="reversed") 
+        ) 
+
+fig
+```
+
+(__Source__: Maryland Department of Health's [Maryland COVID-19 Case Map Dashboard](https://coronavirus.maryland.gov/), and Maryland Department of Planning's [Population Estimates by Race and Hispanic Origin for July 1, 2018](https://planning.maryland.gov/MSDC/Pages/pop_estimate/CensPopEst.aspx))
+
+#####__Q 2. How fast has it been spreading?__ 
 ```{r dataplotTrendNewCasesMD}
 dtafig<-dtacounty%>%select(date, cases)%>%group_by(date)%>%
     summarize_all(funs(sum))%>%
@@ -587,7 +626,9 @@ listx<- list(title = "",
     temp<-dtafig%>%filter(county==countylist[9])
     fig9<- plot_ly(temp, x=~date, y=~newcases, type = 'bar', name=countylist[9])%>%layout(xaxis=listx)      
     temp<-dtafig%>%filter(county==countylist[10])
-    fig10<- plot_ly(temp, x=~date, y=~newcases, type = 'bar', name=countylist[10])%>%layout(xaxis=listx)           
+    fig10<- plot_ly(temp, x=~date, y=~newcases, type = 'bar', name=countylist[10])%>%layout(xaxis=listx)        
+    temp<-dtafig%>%filter(county==countylist[11])
+    fig11<- plot_ly(temp, x=~date, y=~newcases, type = 'bar', name=countylist[11])%>%layout(xaxis=listx)            
 
 listx<- list(title = "Date",  
              font=list(size=10),
@@ -601,7 +642,7 @@ listy<- list(title = "Number of new confirmed cases")
 listlegend <- list(font=list(size=10), orientation = "h",   
                         xanchor = "center", x=0.5, y=-0.15)
 
-subplot(fig1 , fig2, fig3, fig4, fig5, fig6, fig7, fig8, fig9, fig10,
+subplot(fig1 , fig2, fig3, fig4, fig5, fig6, fig7, fig8, fig9, fig10, fig11,
         nrows = 3, shareX = TRUE )%>%
     layout(title = c("Trend of daily new confirmed COVID-19 cases by county, among counties with 150+ cases"),
            xaxis=listx,  yaxis = listy, legend= listlegend)
