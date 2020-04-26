@@ -586,14 +586,47 @@ plot_ly(dtafig, x=~date, y=~newcases,
 dtafig<-dtafig%>%filter(latesttotal>=150)%>% arrange(county, date)
 ncounty150<-n_distinct(dtafig$county)
 ncounty150
+
+dtafig<-dtafig%>%filter(latesttotal>=200)%>% arrange(county, date)
+ncounty200<-n_distinct(dtafig$county)
+ncounty200
 ```
 
-And, below detailed figure is for `r ncounty150` counties with 150 or more confirmed cases. 
+And, below detailed figure is for `r ncounty200` counties with 200 or more confirmed cases. 
 
-Again, [large spikes on April 7th may well be results of delayed processes in laboratory and/or data entry, not actual increases on that date](https://www.baltimoresun.com/coronavirus/bs-md-coronavirus-update-wednesday-20200408-eexgmqygnfetdcp3xymhjpxab4-story.html).   
+Again, [large spikes on April 8th may well be results of delayed processes in laboratory and/or data entry, not actual increases on that date](https://www.baltimoresun.com/coronavirus/bs-md-coronavirus-update-wednesday-20200408-eexgmqygnfetdcp3xymhjpxab4-story.html).   
 
 _Hover over each figure to see values and more options._
-```{r plotTrendNewCasesCountyBar, results='asis', fig.align="left", out.width="800px"}
+```{r plotTrendNewCasesCountyBar, results='asis', fig.align="left", out.width="800px", out.height="350px"}
+
+panel <- . %>% 
+  plot_ly(x=~date, y=~newcases, type = 'bar', marker=list(color=("'#1F77B4'")) ) %>%
+  add_annotations(
+    text = ~unique(county),
+    x = 0.5, y = 0.9, xref = "paper", yref = "paper",    
+    xanchor = "center", yanchor = "bottom", showarrow = FALSE,
+    font = list(size = 10)
+  ) %>%
+  layout(
+    showlegend = FALSE,
+    xaxis=list(title = "Date",  
+             font=list(size=10),
+             tickfont = list(size=8) 
+             ),
+    yaxis=list(title = "New cases"))
+
+
+dtafig<-dtafig%>%filter(latesttotal>=200)
+
+#write.csv(dtafig, "KCOVID/dtaKCOVIDSouthKoreaUnlike1.csv")
+
+dtafig%>%
+    group_by(county) %>%
+    do(p = panel(.)) %>%
+    subplot(nrows = 3, shareX = TRUE, shareY = FALSE)    
+```
+
+```{r fig.align="left", out.width="800px"}
 countylist<-as.vector(as.data.frame(table(dtafig$county))$Var1)
 
 #looping code not working to save a figure with a number! why??? 
