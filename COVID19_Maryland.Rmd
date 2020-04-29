@@ -244,7 +244,7 @@ plot_ly(dtafig, x=~race, y=~cases, type = 'bar', name="confirmed cases")%>%
             )
 ```
 
-Now with Hispanic population disaggregated from "other", the pattern of incidence and mortality by race/ethnicity can be examined better. __In terms of rates, incidence is substantially higher among Other, African American, and Hispanic population__ (blue bars). Currently, __mortality, specifically the case fatality rate, is highest among White and Asian Americans__ (orange bars). This implies that __the disproportionately higher number of deaths among African American population in Maryland is because of the higher rate of infection among African Americans, not because of higher risk of dying among those African Americans who are infected__. At the same time, though the infection rate is lower, mortality risk is higher among Asian Americans in Maryland.   
+Now with Hispanic population disaggregated from "other", the pattern of incidence and mortality by race/ethnicity can be examined better. __In terms of rates, incidence is substantially higher among Hispanic, African American and 'Other' population__ (blue bars). Currently, __mortality, specifically the case fatality rate, is highest among White and Asian Americans__ (orange bars). This implies that __the disproportionately higher number of deaths among African American population in Maryland is because of the higher rate of infection among African Americans, not because of higher risk of dying among those African Americans who are infected__. At the same time, though the infection rate is lower, mortality risk is higher among Asian Americans in Maryland.   
 
 To understand reasons behind this, we will need to learn more about characteristics of patients by race (e.g., Do Asian Americans with COVID tend to be older and/or have existing conditions in Maryland?) and any differences in access to health care by race among COVID patients. Also, what can we do to reduce the higher infection rate among African Americans and Hispanic population in Maryland? Finally and importantly, if and when we have better data on race (i.e., less cases with missing race information), the findings on racial disparity can change. 
 
@@ -554,7 +554,7 @@ dtafig<-dtacounty%>%select(date, county, cases, latesttotal)%>%
     mutate(
         rank = dense_rank(desc(latesttotal))
     )%>%
-    filter(latesttotal>=50)%>% arrange(county, date)
+    filter(latesttotal>=100)%>% arrange(county, date)
 
 ncounty50<-n_distinct(dtafig$county)
 ncounty50
