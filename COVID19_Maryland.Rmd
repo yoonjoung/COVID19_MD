@@ -128,9 +128,11 @@ dtabyage<-dtabyage%>%
         age=as.numeric(sapply(strsplit(grouplabel,"-"), `[`, 1)),
         agegroup=grouplabel, 
         agegroup=ifelse(age==80, "80+", agegroup), 
-        cases=as.numeric(cases) 
+        cases=as.numeric(cases), 
+        deaths=as.numeric(deaths),
+        probabledeaths=as.numeric(probabledeaths) 
     )%>%
-    select(date, age, agegroup, cases)
+    select(date, age, agegroup, cases, deaths, probabledeaths)
 
 dim(dtabyage)
 dtabyage<-left_join(dtabyage, dtapopbyage, by = "age")
@@ -139,6 +141,8 @@ dim(dtabyage)
 dtabyage<-dtabyage%>%
     mutate(
         incidence=round(cases*100000/pop10, 0), 
+        cfr=round(100*deaths/cases, 0), 
+        cfrinclusive=round(100*(probabledeaths + deaths)/cases, 0), 
         temp=max(date),
         latest=date==temp
     )%>%select(-temp)
@@ -190,7 +194,7 @@ dtabyrace<-dtabyrace%>%
     )%>%select(-temp)
 ```
 
-#####__COVID-19 update in Maryland, US__ 
+#####__COVID-19 in Maryland, US: Daily Updates and Insights with Granular Local Data__ 
 
 (Updated: `r time` EDT)  
 
@@ -203,6 +207,65 @@ So, I have been watching the epidemic in China and Korea since the beginning, bu
 _See footnote for further information about data sources. More questions and answers will be added, as more local data become available._ 
 
 (Sorry, this is not mobile device friendly, and is best viewed on your regular monitor.)
+
+---
+
+#####__Q 7. How has mortality changed over time by age? (NEW)__
+
+Answers to Question 5 show latest case fatality rate (i.e., deaths per 100 COVID-19 cases) by county and how it has changed in the State. But, how about across different age groups? __Case fatality rate has increased continuously in older age groups. The rate of increase is highest among people who are 80 and older__.  
+
+```{r plotmortalitytrendbyage, results="asis", fig.align="left", out.width="800px"}
+
+temp<-dtabyage%>%filter(latest==TRUE & age==80)%>%select(cfrinclusive)%>%summarize_all(funs(mean))
+
+upperrange<-round(temp$cfrinclusive+1)
+
+dta50<-dtabyage%>%select(date, agegroup, cfr)%>%filter(agegroup=="50-59")
+dta60<-dtabyage%>%select(date, agegroup, cfr)%>%filter(agegroup=="60-69")
+dta70<-dtabyage%>%select(date, agegroup, cfr)%>%filter(agegroup=="70-79")
+dta80<-dtabyage%>%select(date, agegroup, cfr)%>%filter(agegroup=="80+")
+
+xaxislist<-list(title = "Date", tickfont = list(size=10))
+
+yaxislist<-list(range=c(0.2, upperrange))
+
+fig50<-plot_ly(dta50, x=~date, y=~cfr, 
+               type = 'scatter', mode = 'lines', name = "50-59")%>%
+       layout(xaxis = xaxislist,
+              yaxis = yaxislist)
+fig60<-plot_ly(dta60, x=~date, y=~cfr, 
+               type = 'scatter', mode = 'lines', name = "60-69")%>%
+       layout(xaxis = xaxislist,
+              yaxis = yaxislist)
+fig70<-plot_ly(dta70, x=~date, y=~cfr, 
+               type = 'scatter', mode = 'lines', name = "70-79")%>%
+       layout(xaxis = xaxislist,
+              yaxis = yaxislist)
+fig80<-plot_ly(dta80, x=~date, y=~cfr, 
+               type = 'scatter', mode = 'lines', name = "80+") %>%
+       layout(xaxis = xaxislist,
+              yaxis = yaxislist)
+
+subplot(fig50, fig60, fig70, fig80, shareY = TRUE) %>%
+        layout(
+            title ="Trends of case fatality rate by age group",
+            yaxis = list(title = "Deaths per 100 confirmed cases",
+                         titlefont=list(size=10)),
+            legend=list(orientation = "h", x = 0.2, y=0.8)
+            )
+
+fig<-subplot(style(fig50, legend = list(x = 0.15, y = 0.90)),
+        style(fig60, legend = list(x = 0.15, y = 0.90)),
+        style(fig70, legend = list(x = 0.55, y = 0.90)),
+        style(fig80, legend = list(x = 0.15, y = 0.90)) 
+        )%>%
+        layout(
+            title ="Trends of case fatality rate by age group",
+            yaxis = list(title = "Deaths per 100 confirmed cases",
+                         titlefont=list(size=10))
+            )
+
+```            
 
 ---
 
@@ -287,6 +350,8 @@ subplot(figincidencerate, figcfr, nrows=1, shareY = FALSE, titleY = TRUE) %>%
                  showlegend=FALSE  )
 ```
 (__Source__: Maryland Department of Health's [Maryland COVID-19 Case Map Dashboard](https://coronavirus.maryland.gov/), and Maryland Department of Planning's [Population Estimates by Race and Hispanic Origin for July 1, 2018](https://planning.maryland.gov/MSDC/Pages/pop_estimate/CensPopEst.aspx))
+
+---
 
 #####__Q 5. What is the latest mortality, and how has it changed?__ 
 ```{r}
@@ -392,6 +457,8 @@ plot_ly(dtafig, x = ~date, y = ~deaths, type="bar") %>%
 ```
 (__Source__: New York Times' [Coronavirus in the U.S.: Latest Map and Case Count](https://github.com/nytimes/covid-19-data), US Census Bureau's [County Population Totals: 2010-2019](https://www.census.gov/data/tables/time-series/demo/popest/2010s-counties-total.html#par_textimage))
 
+---
+
 #####__Q 4. How extensive has testing been?__ 
 
 ```{r}
@@ -442,6 +509,8 @@ plot_ly(dtafig, x=~date, y=~newtests, type = 'bar') %>%
 
 ```
 (__Source__: Maryland Department of Health's [Maryland COVID-19 Case Map Dashboard](https://coronavirus.maryland.gov/))
+
+---
 
 #####__Q 3. What age groups are affected? And, how has it changed over time? (NEW)__ 
 
@@ -511,6 +580,8 @@ fig
 ```
 
 (__Source__: Maryland Department of Health's [Maryland COVID-19 Case Map Dashboard](https://coronavirus.maryland.gov/), and Maryland Department of Planning's [Population Estimates by Race and Hispanic Origin for July 1, 2018](https://planning.maryland.gov/MSDC/Pages/pop_estimate/CensPopEst.aspx))
+
+---
 
 #####__Q 2. How fast has it been spreading?__ 
 ```{r dataplotTrendNewCasesMD}
@@ -704,6 +775,8 @@ plot_ly(dtafig, x=~date, y=~newcases, color= ~county,
             legend = list(font=list(size=8))
             )
 ```
+
+---
 
 #####__Q 1. How many confirmed cases do we have now, and where are they?__ 
 ```{r}
