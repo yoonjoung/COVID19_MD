@@ -82,6 +82,8 @@ dtacounty<-dtacounty%>%
 dim(dtacounty)
 dtacounty<-left_join(dtacounty, dtapopcounty, by = "county")%>%filter(county!="Maryland") 
 dim(dtacounty)
+
+
 ```
 
 ```{r dataMD}
@@ -106,8 +108,14 @@ dtaMD<-dtaMD%>%
         newcases=lead(cases)-cases,
         newtests=lead(totaltests)-totaltests
     )%>%
-    select(date, cases, negativetest, deaths, hospitalizations, releasedfromisolation, totaltests, starts_with("new"))
+    select(date, cases, negativetest, deaths, hospitalizations, releasedfromisolation, totaltests, probabledeaths, starts_with("new"))
 str(dtaMD)
+
+```
+
+```{r}
+temp<-dtaMD%>%select(date, cases, negativetest, totaltests, newcases, newtests)
+tail(temp, 10)
 
 ```
 
@@ -144,9 +152,10 @@ dim(dtabyage)
 
 dtabyage<-dtabyage%>%
     mutate(
-        incidence=round(cases*100000/pop10, 0), 
-        cfr=round(100*deaths/cases, 0), 
-        cfrinclusive=round(100*(probabledeaths + deaths)/cases, 0), 
+        incidence=round(cases*100000/pop10, 1), 
+        cfr=round(100*deaths/cases, 1), 
+        cfrprobable=round(100*(deaths+probabledeaths)/(cases+probabledeaths), 1), 
+        cfrextra=cfrprobable - cfr, 
         temp=max(date),
         latest=date==temp
     )%>%select(-temp)
@@ -189,12 +198,14 @@ dim(dtabyrace)
 
 dtabyrace<-dtabyrace%>%
     mutate(
-        incidence=round(cases*100000/pop, 0), 
-        temp=max(date),
-        latest=date==temp,
-        cfr=round(100*deaths/cases, 1),
+        incidence=round(cases*100000/pop, 1), 
+        cfr=round(100*deaths/cases, 1), 
+        cfrprobable=round(100*(deaths+probabledeaths)/(cases+probabledeaths), 1), 
+        cfrextra=cfrprobable - cfr, 
         mortality=round(100000*(deaths)/pop, 1),
-        mortalityprobable=round(100000*(probabledeaths)/pop, 1)
+        mortalityprobable=round(100000*(deaths+probabledeaths)/pop, 1), 
+        temp=max(date),
+        latest=date==temp
     )%>%select(-temp)
 ```
 
@@ -214,66 +225,45 @@ _See footnote for further information about data sources. More questions and ans
 
 ---
 
-#####__Q 7. How has mortality changed over time by age? (NEW)__
+#####__Q 7. How has mortality changed over time by age?__
 
 Answers to Question 5 show latest case fatality rate (i.e., deaths per 100 COVID-19 cases) by county and how it has changed in the State. But, how about across different age groups? __Case fatality rate has increased continuously in older age groups. The rate of increase is highest among people who are 80 and older__.  
 
 ```{r plotmortalitytrendbyage, results="asis", fig.align="left", out.width="800px"}
+    #add_trace(        y=~cfrprobable, name="CFR",        type='scatter',mode = 'lines',         marker=list(color = c( "gray"), size = 1),        line=list(color = c( "gray"))        )%>%
+    
+panel <- . %>% 
+    plot_ly(x=~date, 
+            y=~cfr, name="CFR including probable cases/deaths",
+            type = 'scatter', mode = 'lines'
+            ) %>%
+    add_annotations(
+        text = ~unique(agegroup),
+        x = 0.5, y = 0.9, xref = "paper", yref = "paper",    
+        xanchor = "center", yanchor = "bottom", showarrow = FALSE,
+        font = list(size = 12)
+        ) %>%
+    layout(
+        showlegend = FALSE,
+        title=c("Trend of case fatality rate by age group"),
+        xaxis=list(title = "Date", tickfont = list(size=8)),
+        yaxis=list(title = "Case fatality rate (%)", 
+                   range=c(0.2, upperrange))
+        
+        )
 
-temp<-dtabyage%>%filter(latest==TRUE & age==80)%>%select(cfrinclusive)%>%summarize_all(funs(mean))
+upperrange<-round(max(dtabyage$cfrprobable)+1) 
 
-upperrange<-round(temp$cfrinclusive+1)
-
-dta50<-dtabyage%>%select(date, agegroup, cfr)%>%filter(agegroup=="50-59")
-dta60<-dtabyage%>%select(date, agegroup, cfr)%>%filter(agegroup=="60-69")
-dta70<-dtabyage%>%select(date, agegroup, cfr)%>%filter(agegroup=="70-79")
-dta80<-dtabyage%>%select(date, agegroup, cfr)%>%filter(agegroup=="80+")
-
-xaxislist<-list(title = "Date", tickfont = list(size=10))
-
-yaxislist<-list(range=c(0.2, upperrange))
-
-fig50<-plot_ly(dta50, x=~date, y=~cfr, 
-               type = 'scatter', mode = 'lines', name = "50-59")%>%
-       layout(xaxis = xaxislist,
-              yaxis = yaxislist)
-fig60<-plot_ly(dta60, x=~date, y=~cfr, 
-               type = 'scatter', mode = 'lines', name = "60-69")%>%
-       layout(xaxis = xaxislist,
-              yaxis = yaxislist)
-fig70<-plot_ly(dta70, x=~date, y=~cfr, 
-               type = 'scatter', mode = 'lines', name = "70-79")%>%
-       layout(xaxis = xaxislist,
-              yaxis = yaxislist)
-fig80<-plot_ly(dta80, x=~date, y=~cfr, 
-               type = 'scatter', mode = 'lines', name = "80+") %>%
-       layout(xaxis = xaxislist,
-              yaxis = yaxislist)
-
-subplot(fig50, fig60, fig70, fig80, shareY = TRUE) %>%
-        layout(
-            title ="Trends of case fatality rate by age group in Maryland",
-            yaxis = list(title = "Deaths per 100 confirmed cases",
-                         titlefont=list(size=10)),
-            legend=list(orientation = "h", x = 0.2, y=0.8)
-            )
-
-fig<-subplot(style(fig50, legend = list(x = 0.15, y = 0.90)),
-        style(fig60, legend = list(x = 0.15, y = 0.90)),
-        style(fig70, legend = list(x = 0.55, y = 0.90)),
-        style(fig80, legend = list(x = 0.15, y = 0.90)) 
-        )%>%
-        layout(
-            title ="Trends of case fatality rate by age group in Maryland",
-            yaxis = list(title = "Deaths per 100 confirmed cases",
-                         titlefont=list(size=10))
-            )
-
-```            
+dtabyage%>%filter(age>=50)%>%
+    group_by(agegroup) %>%
+    do(p = panel(.)) %>%
+    subplot(nrows = 1, shareX = TRUE, shareY = TRUE)  
+```
+(__Note__: case fatality rate including only lab-confirmed COVID-19 deaths and cases. See Question 5 for comparison between case fatality rates _with vs. without_ probable deaths/cases.) 
 
 ---
 
-#####__Q 6. How has it affected population across different races? And, how has it changed over time? (NEW)__
+#####__Q 6. How has it affected population across different races? And, how has it changed over time?__
 
 The Maryland Department of Health started publishing data by race (i.e., the number of cases and deaths by race) on April 9th, following an upsetting report about racial disparity in COVID mortality in the US: [higher morality in states with higher proportions of black population](https://www.washingtonpost.com/nation/2020/04/07/coronavirus-is-infecting-killing-black-americans-an-alarmingly-high-rate-post-analysis-shows/?arc404=true). Further data - specifically disaggregated by individual people's race, beyond the state-level analysis - are crucial to monitor and understand the disparity. Also, though initially unavailable, __a separate category for Hispanic population is published on April 15__. As a resident of Maryland, I am very proud of the state's rapid action to publish race data!
 
@@ -359,37 +349,9 @@ subplot(figincidencerate, figcfr,
         layout(  title ="Cumulative incidence and case fatality rates by race in Maryland", 
                  showlegend=FALSE  )
 ```
+(__Note__: case fatality rate including only lab-confirmed COVID-19 deaths and cases. See Question 5 for comparison between case fatality rates _with vs. without_ probable deaths/cases.)   
 (__Source__: Maryland Department of Health's [Maryland COVID-19 Case Map Dashboard](https://coronavirus.maryland.gov/), and Maryland Department of Planning's [Population Estimates by Race and Hispanic Origin for July 1, 2018](https://planning.maryland.gov/MSDC/Pages/pop_estimate/CensPopEst.aspx))
-
-```{r, fig.align="left", out.width="600px"}
-
-dtafig<-dtabyrace%>%select(date, race, incidence)%>%
-    mutate(
-        race=ifelse(race=="African-American", "AfricanAmerican", race), 
-        race=paste0("incidence",race)
-    )%>%
-    arrange(date, race)%>% 
-    spread(race, incidence, fill = NA, convert = FALSE) 
-
-plot_ly(dtafig, x=~date, y=~incidenceHispanic, name = "Hispanic", 
-               type = 'scatter', mode='lines',
-               line = list(color = c( "#d53e4f"))) %>% 
-    add_trace(y = ~incidenceAfricanAmerican, name = "African American", line = list(color = c( "#3288bd"))) %>% 
-    add_trace(y = ~incidenceWhite, name = "White", line = list(color = c( "#66c2a5"))) %>%  
-    add_trace(y = ~incidenceAsian, name = "Asian", line = list(color = c( "#abdda4"))) %>%     
-    layout(
-        title ="Trends of cumulative incidence rate by race in Maryland",
-        xaxis = list(title = ""), 
-        yaxis = list(title = "Number of confirmed cases (per 100,000 population)",
-                     titlefont=list(size=10),
-                     tickfont=list(size=10),
-                     range=c(0, 1000)), 
-        legend = list(font=list(size=12), 
-                      orientation = "v", xanchor = "left",  
-                      x=0.1, y=0.9)               
-        ) 
-```
-
+ 
 
 ```{r plottrendbyrace, results="asis", fig.align="left", out.width="800px"}
 
@@ -429,7 +391,7 @@ dtafig<-dtabyrace%>%select(date, race, cfr)%>%
     arrange(date, race)%>% 
     spread(race, cfr, fill = NA, convert = FALSE) 
 
-maxy<-max(dtabyrace$cfr)
+maxy<-max(dtabyrace$cfr)+1
 
 figcfrtrend<-plot_ly(dtafig, x=~date, y=~cfrAfricanAmerican, name = "African-American", 
                type = 'scatter', mode='lines',
@@ -457,6 +419,7 @@ subplot(figincidenceratetrend, figcfrtrend,
                  )
 
 ```            
+(__Note__: case fatality rate including only lab-confirmed COVID-19 deaths and cases. See Question 5 for comparison between case fatality rates _with vs. without_ probable deaths/cases.)    
 (__Source__: Maryland Department of Health's [Maryland COVID-19 Case Map Dashboard](https://coronavirus.maryland.gov/), and Maryland Department of Planning's [Population Estimates by Race and Hispanic Origin for July 1, 2018](https://planning.maryland.gov/MSDC/Pages/pop_estimate/CensPopEst.aspx))
 
 __Important note on race data in Maryland__:   
@@ -473,55 +436,62 @@ deathsMD<-dtaMD%>%filter(date==max(date))%>%select(deaths)%>%summarize_all(funs(
 casesMD<-dtaMD%>%filter(date==max(date))%>%select(cases)%>%summarize_all(funs(mean))
 cfrMD<-round(100*deathsMD/casesMD, 1)
 
+probabledeathsMD<-dtaMD%>%filter(date==max(date))%>%select(probabledeaths)%>%summarize_all(funs(mean))
+cfrprobableMD<-round(100*(deathsMD+probabledeathsMD)/(casesMD+probabledeathsMD), 1)
+
 latestdatecounty<-max(dtacounty$date)
 ```
-As of `r latestdateMD` 10:00AM, __`r deathsMD` COVID-19-positive deaths have occurred__, according to Maryland Department of Health. __This means `r cfrMD` percent of all confirmed cases__. Below figure shows mortality by county - in terms of both absolute number (red bars) and case fatality rate (orange bars) as of `r latestdatecounty`.  
+As of `r latestdateMD` 10:00AM, according to Maryland Department of Health, __`r deathsMD` COVID-19 deaths have occurred, that had been laboratory-confirmed__. In addition, MD Health Department has published the number of probably COVID deaths since April 15. There have been __`r probabledeathsMD` probable COVID-19 deaths__, for which death certificate lists COVID-19 as the cause of death but not yet confirmed by a laboratory test. This means case fatality rate can be calculated _with vs. without_ the probable deaths (which are thus probable cases as well). Case fatality rate is: 
 
-(_Note: MD Health Department has published the number of probably COVID deaths since April 15. Those deaths have not been included in analyses here_.)
+* __`r cfrMD`__ % based on only laboratory confirmed cases and deaths.   
+* __`r cfrprobableMD`__ % based on laboratory confirmed as well as probable cases and deaths. 
+
+Given relatively small differences across groups (i.e., by age, sex, and race, results now shown), __only laboratory-confirmed COVID-19 deaths and cases are used throughout this report__. I will keep monitoring how the two approaches produce different/similar results, and update as needed. 
+
+Below figure shows mortality by county - in terms of both absolute number (red bars) and case fatality rate (orange bars) as of `r latestdatecounty`.  
 
 ```{r plotdeathsCounty, results='asis', fig.align="left", out.width="800px"}
 dtafig<-dtacounty%>%filter(date==latestdatecounty)%>%
     filter(deaths>0)%>%
     filter(county!="Unknown")%>%
-    select(date, county, deaths, cases)%>%mutate(cfr=round(100*deaths/cases, 1)) 
+    select(date, county, deaths, cases)%>%mutate(cfr=round(100*deaths/cases, 1))
 
 dtafig$county<-factor(dtafig$county, 
                     levels = unique(dtafig$county) 
-                    [order(dtafig$deaths, decreasing = TRUE)])
+                    [order(dtafig$deaths, decreasing = FALSE)])
 
-fig1<-plot_ly(dtafig, x = ~county, y = ~deaths, type="bar", 
-              name = "Total number of deaths", 
+fig1<-plot_ly(dtafig, y = ~county, x = ~deaths, type="bar", orientation="h",
+              name = "lab confirmed COVID-19 deaths", 
               marker = list(color = c( "#d62728"))) %>%
         layout(
             title ="Absolute number of COVID-19-positive deaths by county in Maryland",
-            xaxis = list( 
+            yaxis = list( 
                          autotick = FALSE,
                          showticklabels = TRUE, 
-                         tickfont = list(size=11), 
-                         tickangle=-90
+                         tickfont = list(size=9)
                          ),
-            yaxis = list(title = "Total number of deaths")
+        xaxis = list(title = "Total number of deaths")
             )
 
 dtafig$county<-factor(dtafig$county, 
                     levels = unique(dtafig$county) 
-                    [order(dtafig$cfr, decreasing = TRUE)])
+                    [order(dtafig$cfr, decreasing = FALSE)])
 
-fig2<-plot_ly(dtafig, x = ~county, y = ~cfr, type="bar",
+fig2<-plot_ly(dtafig, y = ~county, x = ~cfr, type="bar", orientation="h",
               name="Deaths per 100 cases (%)",
               marker = list(color = c( "#ff7f0e"))) %>%
         layout(
             title ="COVID-19 case fatality rate by county in Maryland",
-            xaxis = list(  
+            yaxis = list(  
                          autotick = FALSE,
                          showticklabels = TRUE, 
-                         tickfont = list(size=11), 
-                         tickangle=-90
+                         tickfont = list(size=9) 
+                    
                          ),
-            yaxis = list(title = "Deaths per 100 cases (%)")
+            xaxis = list(title = "Deaths per 100 cases (%)")
             )
 
-subplot(fig1, fig2, titleY = TRUE) %>%
+subplot(fig1, fig2, titleX = TRUE) %>%
         layout(
             title ="COVID-19 mortality by county in Maryland",
             legend = list(orientation = "h",   
@@ -533,6 +503,7 @@ subplot(fig1, fig2, titleY = TRUE) %>%
 (__Source__: New York Times' [Coronavirus in the U.S.: Latest Map and Case Count](https://github.com/nytimes/covid-19-data), US Census Bureau's [County Population Totals: 2010-2019](https://www.census.gov/data/tables/time-series/demo/popest/2010s-counties-total.html#par_textimage))
 
 Below chart shows the mortality trends, since March 18 when the first COVID-19 death was reported in Maryland. Globally in countries severely affected by the epidemic before US, case fatality rates increased rapidly in the beginning. The rates then stabilized in some of the countries, depending on health systems' response and characteristics of patient population.  
+
 ```{r plotcfrMDtrends, results='asis', fig.align="left", out.width="800px"}
 dtafig<-dtacounty%>%select(date, deaths, cases)%>%
     group_by(date)%>%
@@ -578,7 +549,7 @@ plot_ly(dtafig, x = ~date, y = ~deaths, type="bar") %>%
 
 ---
 
-#####__Q 4. How extensive has testing been?__ 
+#####__Q 4. How extensive has testing been? How has the test positivity rate changed? (NEW)__ 
 
 ```{r}
 firstdateMD<-min(dtaMD$date)
@@ -596,21 +567,43 @@ popstateNY<-as.vector(19500000)
 testrateNY<-round(1000*totaltestNY/popstateNY, 0)
 latestnewtestsNY<-"15,694"
 ```
-This is a very important question, since the magnitude of testing over time is critical information to understand the epidemic. I got trend data on testing in Maryland from [COVID-19 Case Map Dashboard](https://coronavirus.maryland.gov/) by Maryland Department of Health also [COVID Tracking Project](https://covidtracking.com/data/state/maryland#historical) for earlier data. Still, data on the number of new tests are not available between 3/12 and 3/28. 
 
-As of `r latestdateMD` 10:00AM, __a total of `r totaltestMD` tests have been conducted__. There are about 6 million people in Maryland, and this means __`r testrateMD` tests have been conducted in every 1000 people__. However, __a high rate of positive test indicates that testing is still limited to those with symptoms primarily, not based on effective contact tracing__. Ideally, the positive test rate should be well below 10%. __[Both the high level and its increasing trend in Maryland is worrisome, compared to the national status](https://www.vox.com/2020/5/14/21257264/coronavirus-testing-positive-rate-covid-reopen-usa)__.
-
-Below shows the number of new tests and the positive rate by date in Maryland.  
-
-_Note_: [A large spike on the number of new tests on April 7th appears to be artifact of delayed processes in laboratory and/or data entry, not actual changes in the number of tests](https://www.baltimoresun.com/coronavirus/bs-md-coronavirus-update-wednesday-20200408-eexgmqygnfetdcp3xymhjpxab4-story.html).   
-```{r plotTrendNewTestsMD, results='asis', fig.align="left", out.width="800px"}
-dtafig<-dtaMD%>%select(date, cases, negativetest, totaltests, newtests)%>%
+```{r}
+temp<-dtaMD%>%
+    select(date, cases, newcases,  negativetest, totaltests, newtests)%>%
     mutate(notestdata=(date>as.Date("2020-03-11") & date< as.Date("2020-03-29")) ,
            newtests=ifelse(notestdata==TRUE, NA, newtests), 
-           positiverate=round(100*(cases/totaltests), 1), 
+           positiverate=round(100*(newcases/newtests), 1), 
            positiverate=ifelse(date==min(date), NA, positiverate),  
-           positiverate=ifelse(notestdata==TRUE, NA, positiverate) 
-    )
+           positiverate=ifelse(notestdata==TRUE, NA, positiverate), 
+           positiveratesmooth =round(c(NA,NA,NA,rollmean(positiverate, 7),NA,NA,NA), 1), 
+           positiveratesmooth =ifelse(positiveratesmooth<0,  0, positiveratesmooth)
+           )%>%
+    filter(is.na(positiveratesmooth)==FALSE)%>%filter(date==max(date))
+                                                                 
+positiveratesmoothlatest<-mean(temp$positiveratesmooth)    
+
+positiveratesmoothlatest
+
+```
+This is a very important question, since the magnitude of testing over time is critical information to understand the epidemic. I got trend data on testing in Maryland from [COVID-19 Case Map Dashboard](https://coronavirus.maryland.gov/) by Maryland Department of Health also [COVID Tracking Project](https://covidtracking.com/data/state/maryland#historical) for earlier data. Still, data on the number of new tests are not available between 3/12 and 3/28. 
+
+As of `r latestdateMD` 10:00AM, __a total of `r totaltestMD` tests have been conducted__. There are about 6 million people in Maryland, and this means __`r testrateMD` tests have been conducted in every 1000 people__. 
+
+However, __a high rate of positive test, `r positiveratesmoothlatest` % (average over the latest 7-day data)__, indicates that testing is still limited to those with symptoms primarily, not based on effective contact tracing. Ideally, the positive test rate should be well below 10%.
+
+```{r plotTrendNewTestsMD, results='asis', fig.align="left", out.width="800px"}
+dtafig<-dtaMD%>%select(date, cases, newcases,  negativetest, totaltests, newtests)%>%
+    mutate(notestdata=(date>as.Date("2020-03-11") & date< as.Date("2020-03-29")) ,
+           newtests=ifelse(notestdata==TRUE, NA, newtests), 
+           #positiverate=round(100*(cases/totaltests), 1), 
+           positiverate=round(100*(newcases/newtests), 1), 
+           positiverate=ifelse(date==min(date), NA, positiverate),  
+           positiverate=ifelse(notestdata==TRUE, NA, positiverate), 
+           
+           positiveratesmooth =round(c(NA,NA,NA,rollmean(positiverate, 7),NA,NA,NA), 1), 
+           positiveratesmooth =ifelse(positiveratesmooth<0,  0, positiveratesmooth)
+           )
 
 
 fig<-plot_ly(dtafig, x=~date, y=~newtests, type = 'bar') %>%
@@ -638,7 +631,7 @@ plot_ly(dtafig, x=~date,
         marker=list(color = c( "#8DB9D9"), opacity=1, size=2)
         ) %>%
     add_lines(
-        y=~positiverate, name="Positive rate", 
+        y=~positiveratesmooth, name="Positive rate, 7-day average", 
         marker=list(color = "black"),
         line=list(color = "black"),
         yaxis='y2')%>%
@@ -657,7 +650,7 @@ plot_ly(dtafig, x=~date,
                       range=c(0, 40),
                       overlaying='y',  
                       side="right", showgrid = FALSE),
-        margin = list(b = 100, r=100), 
+        margin = list(r=100), 
         legend=list(orientation="v", xanchor = "left", yanchor = "center", 
                     x = 0.1, y = 0.8) 
         
@@ -667,9 +660,15 @@ plot_ly(dtafig, x=~date,
 ```
 (__Source__: Maryland Department of Health's [Maryland COVID-19 Case Map Dashboard](https://coronavirus.maryland.gov/))
 
+_Note 1_: On May 28th, Maryland Health Department started publishing ["total testing volume"](https://coronavirus.maryland.gov/)". However, it is unclear what a unit of testing is, since the volume is about 15% higher than the sum of "Number of confirmed cases" and "Number of persons tested negative", as of May 28, 2020. Until this is clarified, the test positivity in this report is calculated consistently as percent of "number of _new_ confirmed cases" out of "number of _new_ confirmed cases AND number of _new_ persons tested negative." The number of _new_ cases/persons is a difference between cumulative numbers over two consecutive days, which are published by the state. Then, the test positivity rates are averaged over 7 days.      
+
+_Note 2_: On May 28th, Maryland Health Department also started publishing ["Percent positive testing, all jurisdictions"](https://phpa.health.maryland.gov/Documents/Positivity%20by%20Jurisdiction.pdf)".     
+
+_Note 3_: [A large spike on the number of new tests on April 7th appears to be artifact of delayed processes in laboratory and/or data entry, not actual changes in the number of tests](https://www.baltimoresun.com/coronavirus/bs-md-coronavirus-update-wednesday-20200408-eexgmqygnfetdcp3xymhjpxab4-story.html).  
+
 ---
 
-#####__Q 3. What age groups are affected? And, how has it changed over time? (NEW)__ 
+#####__Q 3. What age groups are affected? And, how has it changed over time?__ 
 
 ```{r}
 incidencetop<-dtabyage%>%filter(latest==TRUE)%>%filter(is.na(age)==FALSE)%>%
@@ -772,7 +771,7 @@ dta %>% group_by(agegroup) %>%
 
 ---
 
-#####__Q 2. How fast has it been spreading?__ 
+#####__Q 2. How fast has it been spreading? (NEW)__ 
 ```{r dataplotTrendNewCasesMD}
 dtafig<-dtacounty%>%select(date, cases)%>%group_by(date)%>%
     summarize_all(funs(sum))%>%
@@ -891,8 +890,19 @@ panel <- . %>%
         yaxis=list(title = "New cases")
         )
 
-
-dtafig<-dtafig%>%filter(latesttotal>=200)
+dtafig<-dtacounty%>%select(date, county, cases, latesttotal)%>%
+    arrange(county, date)%>%
+    mutate(
+        newcases=cases-lag(cases), 
+        newcases=ifelse(newcases<0, 0, newcases),         
+        newcases=ifelse(county!=lag(county), NA, newcases ), 
+        newcasessmooth =c(NA,NA,NA,rollmean(newcases, 7),NA,NA,NA), 
+        newcasessmooth = round(newcasessmooth, 1)
+        )%>%
+    mutate(
+        rank = dense_rank(desc(latesttotal))
+    )%>%
+    filter(latesttotal>=200)
 
 #write.csv(dtafig, "KCOVID/dtaKCOVIDSouthKoreaUnlike1.csv")
 
@@ -921,23 +931,7 @@ listx<- list(title = "",
     temp<-dtafig%>%filter(county==countylist[2])
     fig2<- plot_ly(temp, x=~date, y=~newcases, type = 'bar', name=countylist[2])%>%layout(xaxis=listx) 
     temp<-dtafig%>%filter(county==countylist[3])
-    fig3<- plot_ly(temp, x=~date, y=~newcases, type = 'bar', name=countylist[3])%>%layout(xaxis=listx) 
-    temp<-dtafig%>%filter(county==countylist[4])
-    fig4<- plot_ly(temp, x=~date, y=~newcases, type = 'bar', name=countylist[4])%>%layout(xaxis=listx) 
-    temp<-dtafig%>%filter(county==countylist[5])
-    fig5<- plot_ly(temp, x=~date, y=~newcases, type = 'bar', name=countylist[5])%>%layout(xaxis=listx) 
-    temp<-dtafig%>%filter(county==countylist[6])
-    fig6<- plot_ly(temp, x=~date, y=~newcases, type = 'bar', name=countylist[6])%>%layout(xaxis=listx) 
-    temp<-dtafig%>%filter(county==countylist[7])
-    fig7<- plot_ly(temp, x=~date, y=~newcases, type = 'bar', name=countylist[7])%>%layout(xaxis=listx)    
-    temp<-dtafig%>%filter(county==countylist[8])
-    fig8<- plot_ly(temp, x=~date, y=~newcases, type = 'bar', name=countylist[8])%>%layout(xaxis=listx)    
-    temp<-dtafig%>%filter(county==countylist[9])
-    fig9<- plot_ly(temp, x=~date, y=~newcases, type = 'bar', name=countylist[9])%>%layout(xaxis=listx)      
-    temp<-dtafig%>%filter(county==countylist[10])
-    fig10<- plot_ly(temp, x=~date, y=~newcases, type = 'bar', name=countylist[10])%>%layout(xaxis=listx)        
-    temp<-dtafig%>%filter(county==countylist[11])
-    fig11<- plot_ly(temp, x=~date, y=~newcases, type = 'bar', name=countylist[11])%>%layout(xaxis=listx)            
+    fig3<- plot_ly(temp, x=~date, y=~newcases, type = 'bar', name=countylist[3])%>%layout(xaxis=listx)            
 
 listx<- list(title = "Date",  
              font=list(size=10),
@@ -951,7 +945,7 @@ listy<- list(title = "Number of new confirmed cases")
 listlegend <- list(font=list(size=10), orientation = "h",   
                         xanchor = "center", x=0.5, y=-0.15)
 
-subplot(fig1 , fig2, fig3, fig4, fig5, fig6, fig7, fig8, fig9, fig10, fig11,
+subplot(fig1 , fig2, fig3, 
         nrows = 3, shareX = TRUE )%>%
     layout(title = c("Trend of daily new confirmed COVID-19 cases by county, among counties with 150+ cases"),
            xaxis=listx,  yaxis = listy, legend= listlegend)
@@ -959,26 +953,59 @@ subplot(fig1 , fig2, fig3, fig4, fig5, fig6, fig7, fig8, fig9, fig10, fig11,
 (__Source__: New York Times' [Coronavirus in the U.S.: Latest Map and Case Count](https://github.com/nytimes/covid-19-data))
 
 ```{r}
-#{r plotnewcasesCounty, results='asis', fig.align="left", out.width="800px"}
-dtafig<-dtacounty%>%select(date, county, cases)%>%arrange(county, date)%>%
+
+dtafig<-dtacounty%>%select(date, county, cases, pop)%>%
+    arrange(county, date)%>%
     mutate(
         newcases=cases-lag(cases), 
-        newcases=ifelse(county!=lag(county), NA, newcases )
-        )
-str(table(dtafig$country))
+        newcases=ifelse(newcases<0, 0, newcases),         
+        newcases=ifelse(county!=lag(county), NA, newcases ), 
+        newcasessmooth =c(NA,NA,NA,rollmean(newcases, 7),NA,NA,NA), 
+        newcasessmooth = round(newcasessmooth, 1), 
+        newcasessmoothpp = round(newcasessmooth*100000/pop,3)
+        )%>%
+    filter(is.na(newcasessmooth)==FALSE)%>%
+    filter(date==max(date))
 
-plot_ly(dtafig, x=~date, y=~newcases, color= ~county, 
-        type = 'scatter', mode='lines') %>%
-    layout(
-            title = "Trends of new confirmed COVID-19 cases per day by county in Maryland",
-            xaxis = list(title = "Date",  
+
+temp<-dtafig%>%filter(county=="Prince George's")
+newPG<-round(mean(temp$newcasessmoothpp), 0)
+```
+Finally, below shows counties ranked by the latest level of daily new cases (i.e., right end of the black line above) - per 100,000 population this time. For example, based on the latest 7-day average, there are `r newPG` new cases per day per 100,000 population in Prince George's county.  
+```{r plotnewcasesCountyLatest, results='asis', fig.align="left", out.width="800px"}
+dtafig<-dtacounty%>%select(date, county, cases, pop)%>%
+    arrange(county, date)%>%
+    mutate(
+        newcases=cases-lag(cases), 
+        newcases=ifelse(newcases<0, 0, newcases),         
+        newcases=ifelse(county!=lag(county), NA, newcases ), 
+        newcasessmooth =c(NA,NA,NA,rollmean(newcases, 7),NA,NA,NA), 
+        newcasessmooth = round(newcasessmooth, 1), 
+        newcasessmoothpp = round(newcasessmooth*100000/pop,3)
+        )%>%
+    filter(is.na(newcasessmooth)==FALSE)%>%
+    filter(date==max(date))%>%
+    mutate(
+        rank = dense_rank(desc(newcasessmoothpp))
+    )
+
+dtafig$county<-factor(dtafig$county, 
+                    levels = unique(dtafig$county) 
+                    [order(dtafig$newcasessmoothpp, decreasing = FALSE)])
+
+plot_ly(dtafig, y = ~county, x = ~newcasessmoothpp, type="bar", orientation="h", 
+             marker = list(color = c( "gray"))) %>%
+        layout(
+            title = "Latest daily new cases per 100,000 population by county in Maryland",
+            yaxis = list(title = "",  
                          autotick = FALSE,
                          showticklabels = TRUE, 
-                         tickfont = list(size=10), 
-                         tickangle=-90),
-            yaxis = list(title = "Number of new confirmed cases each day"),
-            legend = list(font=list(size=8))
+                         tickfont = list(size=10) 
+               
+                         ),
+            xaxis = list(title = "New cases per day per 100,000 population (7-day average)")
             )
+
 ```
 
 ---
@@ -1005,58 +1032,58 @@ topincidencecounty
 ```
 As of `r latestdateMD` 10:00AM, __`r casesMD` confirmed cases have been reported in Maryland__, according to Maryland Department of Health. This means there are __`r incidencerateMD` people with confirmed COVID-19 per 100,000 population in the state__. 
 
-Below figure shows number of confirmed cases by county by the end of `r latestdatecounty`.  
+Below figure shows number of confirmed cases (gray bars) and infection rates (i.e., number of confirmed cases per 100,000 population) (blue bars) by county, as of `r latestdatecounty`.  
 
 _Hover over each figure to see values and more options._
 ```{r plottotalcasesCounty, results='asis', fig.align="left", out.width="800px"}
-dtafig<-dtacounty%>%filter(date==latestdatecounty)%>%select(date, county, cases)
-
-dtafig$county<-factor(dtafig$county, 
-                    levels = unique(dtafig$county) 
-                    [order(dtafig$cases, decreasing = TRUE)])
-
-fig<-plot_ly(dtafig, x = ~county, y = ~cases, type="bar",
-             marker = list(color = c( "gray"))) %>%
-        layout(
-            title ="Absolute number of total confirmed cases by county in Maryland",
-            xaxis = list(title = "County",  
-                         autotick = FALSE,
-                         showticklabels = TRUE, 
-                         tickfont = list(size=11), 
-                         tickangle=-90
-                         ),
-            yaxis = list(title = "Total number of confirmed cases")
-            )
-fig
-```
-(__Source__: New York Times' [Coronavirus in the U.S.: Latest Map and Case Count](https://github.com/nytimes/covid-19-data))
-
-__When we look at infection rates (i.e., number of confirmed cases per 100,000 population), `r topincidencecounty` county now has the highest rate currently__. 
-
-_Hover over each figure to see values and more options._
-```{r plotincidenceCounty, results='asis', fig.align="left", out.width="800px"}
 dtafig<-dtacounty%>%filter(date==latestdatecounty)%>%
     select(date, county, cases, pop)%>%
     mutate(incidence=round(cases*100000/pop), 0)
 
 dtafig$county<-factor(dtafig$county, 
                     levels = unique(dtafig$county) 
-                    [order(dtafig$incidence, decreasing = TRUE)])
+                    [order(dtafig$cases, decreasing = FALSE)])
 
-fig<-plot_ly(dtafig, x = ~county, y = ~incidence, 
-             type="bar" ) %>%
+figcases<-plot_ly(dtafig, y = ~county, x = ~cases, 
+                  name="total confirmed cases", 
+                  type="bar", orientation="h" , 
+                  marker = list(color = c( "gray"))) %>%
         layout(
-            title ="COVID-19 cumulative incidence rate by county in Maryland",
-            xaxis = list(title = "County",  
+            yaxis = list(title = "",  
                          autotick = FALSE,
                          showticklabels = TRUE, 
-                         tickfont = list(size=11), 
-                         tickangle=-90
+                         tickfont = list(size=9)
                          ),
-            yaxis = list(title = "Number of confirmed cases per 100,000 population")
+            xaxis = list(title = "Total number of confirmed cases")
             )
-fig
+
+dtafig$county<-factor(dtafig$county, 
+                    levels = unique(dtafig$county) 
+                    [order(dtafig$incidence, decreasing = FALSE)])
+
+figincidence<-plot_ly(dtafig, y = ~county, x = ~incidence, 
+                      name="incidence rate",
+                      type="bar", orientation="h",
+                      marker = list(color = c( "#1f77b4"))) %>%
+        layout(
+            yaxis = list(title = "",  
+                         autotick = FALSE,
+                         showticklabels = TRUE, 
+                         tickfont = list(size=9)
+                         ),
+            xaxis = list(title = "Number of confirmed cases per 100,000 population")
+            )
+
+subplot(figcases, figincidence, 
+        nrows=1, margin=0.05, shareY = FALSE, titleY = TRUE) %>%
+        layout(  title ="Cumulative COVID-19 total cases and incidence rate by county in Maryland", 
+                 legend = list(font=list(size=9), 
+                      orientation = "h", xanchor = "center",  
+                      x=0.5, y=-0.1) 
+        )
+
 ```
+
 (__Source__: New York Times' [Coronavirus in the U.S.: Latest Map and Case Count](https://github.com/nytimes/covid-19-data), US Census Bureau's [County Population Totals: 2010-2019](https://www.census.gov/data/tables/time-series/demo/popest/2010s-counties-total.html#par_textimage))
 
 ```{r}
