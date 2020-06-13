@@ -29,6 +29,8 @@ suppressWarnings(suppressMessages(library(jsonlite)))
 suppressWarnings(suppressMessages(library(httr)))
 suppressWarnings(suppressMessages(library(rlist)))
 suppressWarnings(suppressMessages(library(zoo)))
+suppressWarnings(suppressMessages(library(RColorBrewer))) 
+suppressWarnings(suppressMessages(library(lubridate)))
 ```
 
 ```{r dataPop}
@@ -153,14 +155,13 @@ dim(dtabyage)
 dtabyage<-dtabyage%>%
     mutate(
         incidence=round(cases*100000/pop10, 1), 
-        cfr=round(100*deaths/cases, 1), 
-        cfrprobable=round(100*(deaths+probabledeaths)/(cases+probabledeaths), 1), 
+        cfr=round(100*deaths/cases, 3), 
+        cfrprobable=round(100*(deaths+probabledeaths)/(cases+probabledeaths), 3), 
         cfrextra=cfrprobable - cfr, 
         temp=max(date),
         latest=date==temp
     )%>%select(-temp)
 ```
-
 
 ```{r dataByRace}
 #Total pop
@@ -199,14 +200,134 @@ dim(dtabyrace)
 dtabyrace<-dtabyrace%>%
     mutate(
         incidence=round(cases*100000/pop, 1), 
-        cfr=round(100*deaths/cases, 1), 
-        cfrprobable=round(100*(deaths+probabledeaths)/(cases+probabledeaths), 1), 
+        cfr=round(100*deaths/cases, 3), 
+        cfrprobable=round(100*(deaths+probabledeaths)/(cases+probabledeaths), 3), 
         cfrextra=cfrprobable - cfr, 
-        mortality=round(100000*(deaths)/pop, 1),
-        mortalityprobable=round(100000*(deaths+probabledeaths)/pop, 1), 
+        mortality=round(100000*(deaths)/pop, 3),
+        mortalityprobable=round(100000*(deaths+probabledeaths)/pop, 3), 
         temp=max(date),
         latest=date==temp
     )%>%select(-temp)
+```
+
+```{r dtaGlobal}
+url<-"https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv"
+
+dtacases<- read.csv(url)%>%
+    rename(country = Country.Region,
+           region = Province.State)%>%
+    mutate(country=as.character(country), 
+           country=ifelse(country=="Korea, South", "South Korea", country))%>%
+    filter(country=="South Korea" | country=="Italy")%>%
+    gather(variable, value, starts_with("X"))%>%
+    rename(date = variable,
+           cases = value, 
+           group = country)%>%
+    select(group, date, cases)%>%
+    group_by(group, date)%>%
+    summarize_all(funs(sum))%>%ungroup()
+            
+url<-"https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv"
+dtadeaths<- read.csv(url)%>%
+    rename(country = Country.Region,
+           region = Province.State)%>%
+    mutate(country=as.character(country), 
+           country=ifelse(country=="Korea, South", "South Korea", country))%>%
+    filter(country=="South Korea" | country=="Italy")%>%
+    gather(variable, value, starts_with("X"))%>%
+    rename(date = variable,
+           deaths = value, 
+           group = country)%>%
+    select(group, date, deaths)%>%
+    group_by(group, date)%>%
+    summarize_all(funs(sum))%>%ungroup()
+
+url<-"https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv"
+
+dtacasesMD<-read.csv(url)%>%
+    rename(country = Country_Region,
+           state = Province_State,
+           county = Admin2)%>%
+    filter(state=="Maryland" | state=="New York")%>%
+    select(country, state, county, FIPS, Combined_Key, starts_with("X"))%>%
+    gather(variable, value, starts_with("X"))%>%
+    rename(date = variable,
+           cases = value)%>%
+    mutate(group="",
+           group=ifelse(state=="Maryland", "Maryland, US", group),
+           group=ifelse(state=="New York", "New York, US", group))%>%
+    select(group, date, cases)%>%
+    group_by(group, date)%>%
+    summarize_all(funs(sum))%>%ungroup()
+
+
+url<-"https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_US.csv"
+
+dtadeathsMD<-read.csv(url)%>%
+    rename(country = Country_Region,
+           state = Province_State,
+           county = Admin2)%>%
+        filter(state=="Maryland" | state=="New York")%>%
+    select(country, state, county, FIPS, Combined_Key, starts_with("X"))%>%
+    gather(variable, value, starts_with("X"))%>%
+    rename(date = variable,
+           deaths = value)%>%
+    mutate(group="",
+           group=ifelse(state=="Maryland", "Maryland, US", group),
+           group=ifelse(state=="New York", "New York, US", group))%>%
+    select(group, date, deaths)%>%
+    group_by(group, date)%>%
+    summarize_all(funs(sum))%>%ungroup()
+
+dtacases<-rbind(dtacases, dtacasesMD)
+dtadeaths<-rbind(dtadeaths, dtadeathsMD)
+
+dtacurve<-left_join(dtacases, dtadeaths, by = c("group", "date"))%>%
+    mutate(
+        date=mdy(substring(date, 2)), 
+        pop=0,  
+        pop=ifelse(group=="Maryland, US",  6045.680, pop), 
+        pop=ifelse(group=="New York, US", 19453.561, pop), 
+        pop=ifelse(group=="South Korea",  51269.183, pop), 
+        pop=ifelse(group=="Italy",        60461.828, pop)
+        )%>%
+    arrange(group, date)%>%
+    mutate(
+        newcases=cases-lag(cases),
+        newcases=ifelse(group!=lag(group), NA, newcases),
+
+        newdeaths=deaths-lag(deaths),
+        newdeaths=ifelse(group!=lag(group), NA, newdeaths),
+        
+        incidence=round(100000*cases/(pop*1000), 1), # confiremd cases per 100,000 pop
+        cfr=round(100*deaths/cases, 3), # deaths per 100 confirmed cases   
+        mortality=round(100000*deaths/(pop*1000), 1) # deaths per 100000 pop
+    )%>%arrange(group, date)%>%
+    mutate(
+        newcasessmooth =c(NA,NA,NA,rollmean(newcases, 7),NA,NA,NA), 
+        newdeathssmooth=c(NA,NA,NA,rollmean(newdeaths, 7),NA,NA,NA), 
+        newcasessmooth=ifelse(group!=lag(group), NA, newcasessmooth),
+        newdeathssmooth=ifelse(group!=lag(group), NA, newdeathssmooth),
+        newcasessmooth =round(newcasessmooth, 3),  
+        newdeathssmooth=round(newdeathssmooth, 3),
+
+        newcasessmoothpp=round(100*newcasessmooth/pop, 1),   
+        newdeathssmoothpp=round(100*newdeathssmooth/pop, 1)
+       
+		)
+
+#data quality problem: cumulative deaths and acses going down in some cases 
+
+#Force negative smooth numbers to 0 
+
+dtacurve<-dtacurve%>%
+    mutate(
+        newcasessmooth   =ifelse(newcasessmooth<0,    0, newcasessmooth),
+        newcasessmoothpp =ifelse(newcasessmoothpp<0,  0, newcasessmoothpp),
+        newdeathssmooth  =ifelse(newdeathssmooth<0,   0, newdeathssmooth),
+        newdeathssmoothpp=ifelse(newdeathssmoothpp<0, 0, newdeathssmoothpp)
+    )
+
 ```
 
 #####__COVID-19 in Maryland, US: Daily Updates and Insights with Granular Local Data__ 
@@ -222,6 +343,161 @@ So, I have been watching the epidemic in China and Korea since the beginning, bu
 _See footnote for further information about data sources. More questions and answers will be added, as more local data become available._ 
 
 (Sorry, this is not mobile device friendly, and is best viewed on your regular monitor.)
+
+---
+
+#####__Q 9. Maryland starts phase-2 reopening from June 12th. How important is social distancing? (NEW)__ 
+
+__VERY IMPORTANT!__ The state starts [phase-2 reopening](https://www.wbaltv.com/article/coronavirus-recovery-plan-maryland-stage-two-update-governor-larry-hogan/32824562) on June 12th for various reasons. The number of new cases is declining (see Question 2). Test positivity rate is decreasing (see Question 4). Hospitalization is decreasing and under the state capacity threshold. Economic reasons are important, too.  
+
+However, __the number of new confirmed cases is substantially higher currently than in early March__ (see below also Question 2). In other words, __without following strict preventive guidelines, our chance of getting infected is actually higher now than in early March__, since there is a higher proportion of the state population who are likely contagious. You may wonder if this higher number of new cases now is because of more testing, thus maybe things are potentially better now than in early March. That's possible (since we know very little about the level back then), but probably unlikely.       
+
+Still not convinced? Think this way. As of June 10, when the phase-2 reopening was announced, __our current level of new infections ([11 per 100,000 population](https://rpubs.com/YJ_Choi/COVID19_US_states_curve)) is about 9 times higher than the peak level in [South Korea](https://rpubs.com/YJ_Choi/COVID19_SouthKorea) (back in early March) and also higher than the peak level in Italy, an earlier epicenter in Europe, (back in late March)__ ([see here for more international comparisons](https://rpubs.com/YJ_Choi/KCOVID_Global)).   
+
+We may reopen. But, __we must keep social distancing seriously__. Again, here are [business guidelines from the state](https://commerce.maryland.gov/Documents/BusinessResource/Restaurants-bars-COVID-19-Best-Practices.pdf) and [preventive guidelines from CDC](https://www.cdc.gov/coronavirus/2019-ncov/protect/index.html).  
+
+```{r plotMD_Global, results="asis", fig.align="left", out.width="800px"}
+
+
+dtafig<-dtacurve%>%
+    select(group, date, newcasessmoothpp)%>%
+    mutate(
+        group=paste0("Y_",group)
+    ) %>% 
+    arrange(date, group) %>% 
+    spread(group, newcasessmoothpp, fill = NA, convert = FALSE)%>%
+    rename(Y_MD = "Y_Maryland, US",
+           Y_NY = "Y_New York, US",
+           Y_SK = "Y_South Korea")
+
+plot_ly(dtafig, x=~date, y=~Y_MD, name = "Maryland, US", 
+        type = 'scatter', mode='lines', line = list(color = c("#1f77b4")),
+        hoverinfo = 'text',
+        text = ~paste(
+                      '</br> Date: ', date,
+                      '</br> New cases per 100,000: ', Y_MD)) %>%
+    add_trace(y=~Y_Italy, name="Italy", line = list(color = c("#e34a33")) ,
+            hoverinfo = 'text',
+            text = ~paste(
+                          '</br> Date: ', date,
+                          '</br> New cases per 100,000: ', Y_Italy)) %>%
+    add_trace(y=~Y_SK, name="South Korea", line = list(color = c("#b30000")) ,
+            hoverinfo = 'text',
+            text = ~paste(
+                          '</br> Date: ', date,
+                          '</br> New cases per 100,000: ', Y_SK)) %>%
+    layout(showlegend=TRUE,
+           title = "New cases per 100,000 population (7-day rolling average)", 
+           xaxis = list(title = "Date", 
+                        tickfont = list(size=10)),
+           yaxis = list(title = "Daily new confirmed cases per 100,000 population"), 
+           legend = list(font=list(size=12), 
+                      orientation = "v", xanchor = "left",  
+                      x=0.1, y=0.9)    
+           )
+
+#    add_trace(y=~Y_NY, name="New York, US", line = list(color = c("#fc8d59")) ,
+#            hoverinfo = 'text',
+#            text = ~paste(
+#                          '</br> Date: ', date,
+#                          '</br> New cases per 100,000: ', Y_NY)) %>%
+```
+(Date sources: [JHU/CSSE COVID-19 Dashgboard](https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data), [World Population Prospects 2019 Revision](https://population.un.org/wpp/), [Maryland Population Estimates by Race and Hispanic Origin for July 1, 2018](https://planning.maryland.gov/MSDC/Pages/pop_estimate/CensPopEst.aspx)) 
+
+---
+
+#####__Q 8.1 What do we know about changing (or not) demographic background of people with confirmed COVID-19? (NEW)__ 
+
+Among those with COVID-19, the proportions of younger population have increased. Also, the proportions of minority groups, __especially Hispanics__, have increased. __Only 10% of population is Hispanic (as of 2018), but one third of confirmed cases belong to Hipanic population__.    
+
+It is important to know _age composition within each race_ as well. As of early June, only three states in the US publish such data, and Maryland is not one of them unfortunately.   
+
+```{r plotcompositiontrend, results="asis", fig.align="left", out.width="800px"}
+### cases
+
+dtafig <- dtabyage%>%
+    select(date, age, agegroup, cases, pop10)%>%
+    filter(is.na(age)==FALSE)%>%
+    group_by(date)%>%
+    mutate(
+        total=sum(cases),
+        pct=round(100*cases/total,1), 
+        totalpop=sum(pop10),
+        pctpop=round(100*pop10/totalpop,1) )%>%
+    ungroup()
+
+dtapopbyage <- dtafig%>%filter(date==max(date))%>%select(agegroup, pop10, totalpop, pctpop)
+
+#head(dtapopbyage, 10)
+
+fig1<-dtafig %>% group_by(agegroup) %>% 
+    arrange(date) %>%
+    plot_ly( x = ~date, y = ~pct, type = "bar",
+             color= ~agegroup, 
+             colors = brewer.pal(length(unique(dtafig$agegroup)),
+                                "Spectral")
+             ) %>%
+    layout(
+        title ="Composition by age-group among confirmed COVID-19 cases over time, Maryland", 
+        yaxis = list(title = "Percent of confirmed cases",
+                     titlefont=list(size=12)), 
+        legend = list(font=list(size=12)),
+        barmode = 'stack'
+        ) 
+
+fig1
+
+dtafig <- dtabyrace%>%
+    select(date, race, cases, pop)%>%
+    filter(is.na(race)==FALSE)%>%
+    filter(race!="Missing")%>%
+    mutate(
+        raceorder="", 
+        raceorder=ifelse(race=="White", "1 White", raceorder),
+        raceorder=ifelse(race=="African-American", "2 African-American", raceorder),
+        raceorder=ifelse(race=="Hispanic", "3 Hispanic", raceorder),
+        raceorder=ifelse(race=="Asian", "4 Asian", raceorder),
+        raceorder=ifelse(race=="Other", "5 Other", raceorder)
+        )%>%
+    group_by(date)%>%
+    mutate(
+        total=sum(cases),
+        pct=round(100*cases/total,1), 
+        totalpop=sum(pop),
+        pctpop=round(100*pop/totalpop,1) )%>%
+    ungroup()
+
+dtapopbyrace <- dtafig%>%filter(date==max(date))%>%select(raceorder, pop, totalpop, pctpop)
+
+#head(dtapopbyrace, 10)
+
+fig2<-dtafig %>% group_by(raceorder) %>% 
+    arrange(date) %>%
+    plot_ly( x = ~date, y = ~pct, type = "bar",
+             color= ~raceorder, 
+             colors = brewer.pal(length(unique(dtafig$raceorder)),
+                                "PuBu")
+             ) %>%
+    layout(
+        title ="Composition by race* among confirmed COVID-19 cases over time, Maryland", 
+        yaxis = list(title = "Percent of confirmed cases",
+                     titlefont=list(size=12)), 
+        legend = list(font=list(size=12)),
+        barmode = 'stack'
+        ) 
+fig2
+
+#subplot(fig1, fig2, 
+#        nrows=1, margin=0.05, shareY = TRUE, shareX = TRUE) %>%
+#        layout(  title ="Changing composition by age and race among confirmed COVID-19 cases, Maryland")
+```
+_NOTE on race data_: composition excluding cases with unknown race. Hispanic was not reported as a separate category until April 15th.  
+
+#####__Q 8.2. Does it explain slightly decreasing mortality?__ 
+
+Yes, at least partially. There is a very strong age-pattern in COVID-19 mortality (i.e., the older, the higher risk of dying), and having proportionately more younger people with COVID-19 would lower _overall, all-age, case fatality rate_, which has declined slightly (See Question 5). In addition, importantly, a recent study showed [how hospital care might have improved and saved lives more effectively over time, even just over several weeks](https://www.bmj.com/content/369/bmj.m1966). 
+
+At the same time, minority populations [have lower health insurance coverage](https://www.kff.org/disparities-policy/issue-brief/changes-in-health-coverage-by-race-and-ethnicity-since-the-aca-2010-2018/) and [receive lower quality of care](https://www.ahrq.gov/research/findings/nhqrdr/nhqdr18/index.html) than White population in the US. So, having proportionately more minorities means access to quality health care may decrease among people with confirmed cases.     
 
 ---
 
@@ -549,7 +825,7 @@ plot_ly(dtafig, x = ~date, y = ~deaths, type="bar") %>%
 
 ---
 
-#####__Q 4. How extensive has testing been? How has the test positivity rate changed? (NEW)__ 
+#####__Q 4. How extensive has testing been? How has the test positivity rate changed?__ 
 
 ```{r}
 firstdateMD<-min(dtaMD$date)
@@ -771,7 +1047,7 @@ dta %>% group_by(agegroup) %>%
 
 ---
 
-#####__Q 2. How fast has it been spreading? (NEW)__ 
+#####__Q 2. How fast has it been spreading? What is the trend of new cases?__ 
 ```{r dataplotTrendNewCasesMD}
 dtafig<-dtacounty%>%select(date, cases)%>%group_by(date)%>%
     summarize_all(funs(sum))%>%
@@ -779,7 +1055,7 @@ dtafig<-dtacounty%>%select(date, cases)%>%group_by(date)%>%
     mutate(
         newcases=cases-lag(cases), 
         newcasessmooth =c(NA,NA,NA,rollmean(newcases, 7),NA,NA,NA), 
-        newcasessmooth = round(newcasessmooth, 1)
+        newcasessmooth = round(newcasessmooth, 3)
         )
 
 latestdate<-max(dtafig$date)
@@ -820,7 +1096,7 @@ dtafig<-dtacounty%>%select(date, county, cases, latesttotal)%>%
         newcases=ifelse(newcases<0, 0, newcases),         
         newcases=ifelse(county!=lag(county), NA, newcases ), 
         newcasessmooth =c(NA,NA,NA,rollmean(newcases, 7),NA,NA,NA), 
-        newcasessmooth = round(newcasessmooth, 1)
+        newcasessmooth = round(newcasessmooth, 3)
         )%>%
     mutate(
         rank = dense_rank(desc(latesttotal))
@@ -897,7 +1173,7 @@ dtafig<-dtacounty%>%select(date, county, cases, latesttotal)%>%
         newcases=ifelse(newcases<0, 0, newcases),         
         newcases=ifelse(county!=lag(county), NA, newcases ), 
         newcasessmooth =c(NA,NA,NA,rollmean(newcases, 7),NA,NA,NA), 
-        newcasessmooth = round(newcasessmooth, 1)
+        newcasessmooth = round(newcasessmooth, 3)
         )%>%
     mutate(
         rank = dense_rank(desc(latesttotal))
@@ -961,7 +1237,7 @@ dtafig<-dtacounty%>%select(date, county, cases, pop)%>%
         newcases=ifelse(newcases<0, 0, newcases),         
         newcases=ifelse(county!=lag(county), NA, newcases ), 
         newcasessmooth =c(NA,NA,NA,rollmean(newcases, 7),NA,NA,NA), 
-        newcasessmooth = round(newcasessmooth, 1), 
+        newcasessmooth = round(newcasessmooth, 3), 
         newcasessmoothpp = round(newcasessmooth*100000/pop,3)
         )%>%
     filter(is.na(newcasessmooth)==FALSE)%>%
@@ -980,7 +1256,7 @@ dtafig<-dtacounty%>%select(date, county, cases, pop)%>%
         newcases=ifelse(newcases<0, 0, newcases),         
         newcases=ifelse(county!=lag(county), NA, newcases ), 
         newcasessmooth =c(NA,NA,NA,rollmean(newcases, 7),NA,NA,NA), 
-        newcasessmooth = round(newcasessmooth, 1), 
+        newcasessmooth = round(newcasessmooth, 3), 
         newcasessmoothpp = round(newcasessmooth*100000/pop,3)
         )%>%
     filter(is.na(newcasessmooth)==FALSE)%>%
