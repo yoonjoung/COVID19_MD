@@ -348,18 +348,19 @@ _See footnote for further information about data sources. More questions and ans
 
 #####__Q 9. Maryland starts phase-2 reopening from June 12th. How important is social distancing? (NEW)__ 
 
-__VERY IMPORTANT!__ The state starts [phase-2 reopening](https://www.wbaltv.com/article/coronavirus-recovery-plan-maryland-stage-two-update-governor-larry-hogan/32824562) on June 12th for various reasons. The number of new cases is declining (see Question 2). Test positivity rate is decreasing (see Question 4). Hospitalization is decreasing and under the state capacity threshold. Economic reasons are important, too.  
+__VERY IMPORTANT!__ The state starts [phase-2 reopening](https://www.wbaltv.com/article/coronavirus-recovery-plan-maryland-stage-two-update-governor-larry-hogan/32824562) on June 12th probably for various reasons. The number of new cases has been declining (see Question 2) - _[though third highest in the country as of June 10th](https://rpubs.com/YJ_Choi/COVID19_US_supplement) when the phase-2 reopening was announced_. Test positivity rate is decreasing (see Question 4) - _though still well above 5% as of June 10th_. Hospitalization is decreasing and under the state capacity threshold. Economic reasons are important, too.    
 
 However, __the number of new confirmed cases is substantially higher currently than in early March__ (see below also Question 2). In other words, __without following strict preventive guidelines, our chance of getting infected is actually higher now than in early March__, since there is a higher proportion of the state population who are likely contagious. You may wonder if this higher number of new cases now is because of more testing, thus maybe things are potentially better now than in early March. That's possible (since we know very little about the level back then), but probably unlikely.       
 
-Still not convinced? Think this way. As of June 10, when the phase-2 reopening was announced, __our current level of new infections ([11 per 100,000 population](https://rpubs.com/YJ_Choi/COVID19_US_states_curve)) is about 9 times higher than the peak level in [South Korea](https://rpubs.com/YJ_Choi/COVID19_SouthKorea) (back in early March) and also higher than the peak level in Italy, an earlier epicenter in Europe, (back in late March)__ ([see here for more international comparisons](https://rpubs.com/YJ_Choi/KCOVID_Global)).   
+Still not convinced? Think this way. As of June 10, __our number of new infections ([11 per 100,000 population](https://rpubs.com/YJ_Choi/COVID19_US_states_curve)) was about 9 times higher than the peak level in [South Korea](https://rpubs.com/YJ_Choi/COVID19_SouthKorea) (back in early March) and also higher than the peak level in Italy (back in late March), an earlier epicenter in Europe__ ([see here for more international comparisons](https://rpubs.com/YJ_Choi/KCOVID_Global)).   
 
 We may reopen. But, __we must keep social distancing seriously__. Again, here are [business guidelines from the state](https://commerce.maryland.gov/Documents/BusinessResource/Restaurants-bars-COVID-19-Best-Practices.pdf) and [preventive guidelines from CDC](https://www.cdc.gov/coronavirus/2019-ncov/protect/index.html).  
 
 ```{r plotMD_Global, results="asis", fig.align="left", out.width="800px"}
 
-
 dtafig<-dtacurve%>%
+    select(group, date, newcasessmoothpp)%>%
+    filter(group!="New York, US")%>%
     select(group, date, newcasessmoothpp)%>%
     mutate(
         group=paste0("Y_",group)
@@ -367,7 +368,6 @@ dtafig<-dtacurve%>%
     arrange(date, group) %>% 
     spread(group, newcasessmoothpp, fill = NA, convert = FALSE)%>%
     rename(Y_MD = "Y_Maryland, US",
-           Y_NY = "Y_New York, US",
            Y_SK = "Y_South Korea")
 
 plot_ly(dtafig, x=~date, y=~Y_MD, name = "Maryland, US", 
@@ -402,7 +402,7 @@ plot_ly(dtafig, x=~date, y=~Y_MD, name = "Maryland, US",
 #                          '</br> Date: ', date,
 #                          '</br> New cases per 100,000: ', Y_NY)) %>%
 ```
-(Date sources: [JHU/CSSE COVID-19 Dashgboard](https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data), [World Population Prospects 2019 Revision](https://population.un.org/wpp/), [Maryland Population Estimates by Race and Hispanic Origin for July 1, 2018](https://planning.maryland.gov/MSDC/Pages/pop_estimate/CensPopEst.aspx)) 
+(Date sources: [JHU/CSSE COVID-19 Dashgboard](https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data), [World Population Prospects 2019 Revision](https://population.un.org/wpp/), [Maryland Population from US Census Bureau](https://www.census.gov/data/tables/time-series/demo/popest/2010s-counties-total.html#par_textimage)) 
 
 ---
 
@@ -730,7 +730,7 @@ Below figure shows mortality by county - in terms of both absolute number (red b
 dtafig<-dtacounty%>%filter(date==latestdatecounty)%>%
     filter(deaths>0)%>%
     filter(county!="Unknown")%>%
-    select(date, county, deaths, cases)%>%mutate(cfr=round(100*deaths/cases, 1))
+    select(date, county, deaths, cases)%>%mutate(cfr=round(100*deaths/cases, 3))
 
 dtafig$county<-factor(dtafig$county, 
                     levels = unique(dtafig$county) 
@@ -784,7 +784,7 @@ Below chart shows the mortality trends, since March 18 when the first COVID-19 d
 dtafig<-dtacounty%>%select(date, deaths, cases)%>%
     group_by(date)%>%
     summarize_all(funs(sum))%>%
-    mutate(cfr=round(100*deaths/cases, 1))%>%
+    mutate(cfr=round(100*deaths/cases, 3))%>%
     filter(cfr>0)
 
 plot_ly(dtafig, x = ~date, y = ~cfr, type="bar", 
@@ -806,7 +806,7 @@ plot_ly(dtafig, x = ~date, y = ~cfr, type="bar",
 dtafig<-dtacounty%>%select(date, deaths, cases)%>%
     group_by(date)%>%
     summarize_all(funs(sum))%>%
-    mutate(cfr=round(100*deaths/cases, 1))%>%
+    mutate(cfr=round(100*deaths/cases, 3))%>%
     filter(cfr>0)
 
 plot_ly(dtafig, x = ~date, y = ~deaths, type="bar") %>%
@@ -866,7 +866,7 @@ This is a very important question, since the magnitude of testing over time is c
 
 As of `r latestdateMD` 10:00AM, __a total of `r totaltestMD` tests have been conducted__. There are about 6 million people in Maryland, and this means __`r testrateMD` tests have been conducted in every 1000 people__. 
 
-However, __a high rate of positive test, `r positiveratesmoothlatest` % (average over the latest 7-day data)__, indicates that testing is still limited to those with symptoms primarily, not based on effective contact tracing. Ideally, the positive test rate should be well below 10%.
+However, __a high rate of positive test, `r positiveratesmoothlatest` % (average over the latest 7-day data)__, indicates that testing is still limited to those with symptoms primarily, not based on effective contact tracing. Ideally, [the positive test rate should be below 5%](https://coronavirus.jhu.edu/testing/tracker/map/percent-positive). 
 
 ```{r plotTrendNewTestsMD, results='asis', fig.align="left", out.width="800px"}
 dtafig<-dtaMD%>%select(date, cases, newcases,  negativetest, totaltests, newtests)%>%
@@ -912,7 +912,7 @@ plot_ly(dtafig, x=~date,
         line=list(color = "black"),
         yaxis='y2')%>%
     add_segments(x = min(dtafig$date), xend = max(dtafig$date), 
-                 y = 10, yend = 10,yaxis='y2', 
+                 y = 5, yend = 5, yaxis='y2', 
                  marker = list(color = "gray",size = 2),
                  line= list(color = "gray",  dash = 'dot'),
                  showlegend=FALSE)%>%
