@@ -864,8 +864,9 @@ With the reopening, we expect to see - and have seen - increases in new cases. W
 
 Nonetheless, __where and among whom have the new cases increased most?__  
 
-* It is increasing across all race & ethnic groups, but __the relative increase from the lowest level in June is largest among white, African-American, and Asian populations__.  
-Solid line is 7-day rolling average of daily new cases per 100,000 population. _Orange segment of the line is the first two weeks after reopening, and red segment is beyond that period_.    
+* It is increasing across all race & ethnic groups, but __the relative increase from the lowest level in June is largest among white and African-American populations__.  
+
+_Solid line is 7-day rolling average of daily new cases per 100,000 population. <span style="color: orange;">Orange segment of the line</span> is the first two weeks after reopening, and <span style="color: red;">red part</span> is beyond that period_.    
 
 ```{r plotTrendSincePhase2Race, results="asis", fig.align="left", out.width="800px", out.height="300px"}
 dtafig<-dtabyrace%>%
@@ -960,7 +961,8 @@ head(temp, 10)
 ```
 
 * It is increasing across all age groups, but __the increase is most prominent among those in their 10s and 20s__.  
-Solid line is 7-day rolling average of daily new cases per 100,000 population. _Orange segment of the line is the first two weeks after reopening, and red segment is beyond that period_.       
+
+_Solid line is 7-day rolling average of daily new cases per 100,000 population. <span style="color: orange;">Orange segment of the line</span> is the first two weeks after reopening, and <span style="color: red;">red part</span> is beyond that period_.        
 
 ```{r plotTrendSincePhase2Age, results="asis", fig.align="left", out.width="800px", out.height="750px"}
 dtafig<-dtabyage%>%
@@ -1049,9 +1051,10 @@ head(temp, 10)
 
 ```
 
-* Among counties with 200 or more confirmed cases...   
+* Among counties with 400 or more confirmed cases...   
 
-Solid line is 7-day rolling average of daily new cases per 100,000 population. _Orange segment of the line is the first two weeks after reopening, and red segment is beyond that period_.       
+_Solid line is 7-day rolling average of daily new cases per 100,000 population. <span style="color: orange;">Orange segment of the line</span> is the first two weeks after reopening, and <span style="color: red;">red part</span> is beyond that period_.    
+
 ```{r plotTrendSincePhase2County, results='asis', fig.align="left", out.width="800px", out.height="800px"}
 
 dtafig<-dtacounty%>%
@@ -1124,6 +1127,7 @@ panel <- . %>%
         )
 
 dtafig%>%
+    filter(total>=400)%>%
     group_by(group) %>%
     do(p = panel(.)) %>%
     subplot(nrows = 5, shareX = TRUE, shareY = FALSE)%>%
@@ -1606,37 +1610,26 @@ plot_ly(dtafig, x = ~date, y = ~deaths, type="bar") %>%
 #####__Q 4. How extensive has testing been? How has the test positivity rate changed?__ 
 
 ```{r}
-firstdateMD<-min(dtaMD$date)
-latestdateMD<-max(dtaMD$date)
 totaltestMD<-dtaMD%>%filter(date==max(date))%>%select(totaltests)%>%summarize_all(funs(max))
 
 popstate<-dtapopcounty%>%filter(county=="Maryland")%>%select(pop)%>%summarize_all(funs(sum))
+
 testrateMD<-round(1000*totaltestMD/popstate, 1)
+
 totaltestMD<-as.character(totaltestMD)
 
-#The State has tested 220,880 individuals, with 15,694 new people tested on March 31.
-#https://coronavirus.health.ny.gov/home
-totaltestNY<-as.vector(220880)
-popstateNY<-as.vector(19500000)
-testrateNY<-round(1000*totaltestNY/popstateNY, 0)
-latestnewtestsNY<-"15,694"
-```
-
-```{r}
 temp<-dtaMD%>%
-    select(date, cases, newcases,  negativetests, totaltests, newtests)%>%
+    select(date, date, newtests, percent_positive)%>%
     mutate(notestdata=(date>as.Date("2020-03-11") & date< as.Date("2020-03-29")) ,
-           #newtests=ifelse(notestdata==TRUE, NA, newtests), 
-           positiverate=round(100*(newcases/newtests), 1), 
-           positiverate=ifelse(date==min(date), NA, positiverate),  
-           positiverate=ifelse(notestdata==TRUE, NA, positiverate), 
-           positiveratesmooth =round(c(NA,NA,NA,rollmean(positiverate, 7),NA,NA,NA), 1), 
+           positiveratesmooth =round(c(NA,NA,NA,rollmean(percent_positive, 7),NA,NA,NA), 1), 
            positiveratesmooth =ifelse(positiveratesmooth<0,  0, positiveratesmooth)
            )%>%
     filter(is.na(positiveratesmooth)==FALSE)%>%filter(date==max(date))
                                                                  
 positiveratesmoothlatest<-mean(temp$positiveratesmooth)    
 
+testrateMD
+totaltestMD
 positiveratesmoothlatest
 
 ```
@@ -1798,6 +1791,7 @@ incidencetopage<-incidencetopage$agegroup
 
 
 incidencetop
+
 incidencetopage
 
 ```
@@ -1991,7 +1985,7 @@ ncounty150
 
 dtafig<-dtafig%>%filter(latesttotal>=200)%>% arrange(county, date)
 ncounty200<-n_distinct(dtafig$county)
-ncounty200
+ncounty200   
 ```
 
 Now, _among `r ncounty200` counties with 200 or more confirmed cases_, below shows the trends of daily number of NEW confirmed cases for each of the county, with 7-day rolling averages in black lines. Again, [large spikes on April 8th may well be results of delayed processes in laboratory and/or data entry, not actual increases on that date](https://www.baltimoresun.com/coronavirus/bs-md-coronavirus-update-wednesday-20200408-eexgmqygnfetdcp3xymhjpxab4-story.html).  
