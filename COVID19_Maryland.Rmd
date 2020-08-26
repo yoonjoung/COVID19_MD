@@ -47,7 +47,7 @@ dtapopcounty<-dtapopcounty%>%select(stname, ctyname, popestimate2019)%>%
     filter(state=="Maryland")%>%
     select(county, pop)
 
-#View(dtapopcounty)
+##View(dtapopcounty)
 ```
 
 ```{r dataByCounty, eval=FALSE}
@@ -55,14 +55,14 @@ dtapopcounty<-dtapopcounty%>%select(stname, ctyname, popestimate2019)%>%
 url<-"https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv"
 dtacases<-read.csv(url)
 
-dtacounty<-read.csv(url)%>%
+dtabycounty<-read.csv(url)%>%
     mutate(
         date=as.Date(as.character(date)),
         state=as.character(state),
         county=as.character(county)
     )
 
-dtacounty<-dtacounty%>%
+dtabycounty<-dtabycounty%>%
     filter(state=="Maryland")%>%
     select(-state)%>%
     mutate(
@@ -84,14 +84,14 @@ dtacounty<-dtacounty%>%
     )%>%ungroup()%>%
     arrange(county, date)
 
-dim(dtacounty)
-dtacounty<-left_join(dtacounty, dtapopcounty, by = "county")%>%
+dim(dtabycounty)
+dtabycounty<-left_join(dtabycounty, dtapopcounty, by = "county")%>%
     filter(county!="Maryland") 
-dim(dtacounty)
+dim(dtabycounty)
 
-length(unique(dtacounty$county))
-colnames(dtacounty)
-tail(dtacounty)
+length(unique(dtabycounty$county))
+colnames(dtabycounty)
+tail(dtabycounty)
 
 ```
 
@@ -112,7 +112,14 @@ countylist<-as.vector(colnames(dta))[-c(1:2)]
 casesbycounty<-dta%>%
     mutate(date=as.Date(DATE))%>%
     select(-OBJECTID, -DATE)%>%
-    gather(county, cases, countylist)    
+    gather(county, cases, countylist)%>%
+    mutate(
+        county=ifelse(county=="Anne_Arundel", "Anne Arundel", county), 
+        county=ifelse(county=="Baltimore_City", "Baltimore city", county), 
+        county=ifelse(county=="Prince_Georges", "Prince George's", county), 
+        county=ifelse(county=="Queen_Annes", "Queen Anne's", county), 
+        county=ifelse(county=="St_Marys", "St. Mary's", county)    
+        )    
 ```
 
 ```{r APIdtabycountyConfirmeddeaths}
@@ -129,10 +136,19 @@ dta<-jsondta[[2]]
 
 countylist<-as.vector(colnames(dta))[-c(1:2)]
 
+str(dta)
+
 deathsbycounty<-dta%>%
     mutate(date=as.Date(DATE))%>%
     select(-OBJECTID, -DATE)%>%
-    gather(county, deaths, countylist)
+    gather(county, deaths, countylist)%>%
+    mutate(
+        county=ifelse(county=="Anne_Arundel", "Anne Arundel", county), 
+        county=ifelse(county=="Baltimore_City", "Baltimore city", county), 
+        county=ifelse(county=="Prince_Georges", "Prince George's", county), 
+        county=ifelse(county=="Queen_Annes", "Queen Anne's", county), 
+        county=ifelse(county=="St_Marys", "St. Mary's", county)    
+        )    
 
 ```
 
@@ -148,12 +164,23 @@ jsondta<-jsondata[[4]]
     
 dta<-jsondta[[2]]
 
+#View(dta)
+
 countylist<-as.vector(colnames(dta))[-c(1:2)]
 
 probabledeathsbycounty<-dta%>%
     mutate(date=as.Date(DATE))%>%
     select(-OBJECTID, -DATE)%>%
-    gather(county, probabledeaths, countylist) 
+    gather(county, probabledeaths, countylist)%>%
+    mutate(
+        county=ifelse(county=="Anne_Arundel", "Anne Arundel", county), 
+        county=ifelse(county=="Baltimore_City", "Baltimore city", county), 
+        county=ifelse(county=="Prince_Georges", "Prince George's", county), 
+        county=ifelse(county=="Queen_Annes", "Queen Anne's", county), 
+        county=ifelse(county=="St_Marys", "St. Mary's", county)    
+        )     
+
+#View(probabledeathsbycounty)
 ```
 
 ```{r APIdtabycountyTesstpersons}
@@ -171,8 +198,24 @@ datelist<-as.vector(colnames(dta))[-c(1:2)]
 
 testpersonsbycounty<-dta%>%
     select(-OBJECTID)%>%
-    gather(date, testpersons, datelist)%>%
-    rename(county=County) 
+    gather(date, personstested, datelist)%>%
+    rename(county=County)%>%
+    mutate(
+        date=substring(date, 3),
+        date=gsub("\\_", "/", date),
+        date=as.Date(date, format = "%m/%d/%Y")
+        )%>%    
+    mutate(
+        county=ifelse(county=="Anne_Arundel", "Anne Arundel", county), 
+        county=ifelse(county=="Baltimore_City", "Baltimore city", county), 
+        county=ifelse(county=="Baltimore_city", "Baltimore city", county), 
+        county=ifelse(county=="Baltimore City", "Baltimore city", county), 
+        county=ifelse(county=="Prince_Georges", "Prince George's", county), 
+        county=ifelse(county=="Queen_Annes", "Queen Anne's", county), 
+        county=ifelse(county=="St_Marys", "St. Mary's", county)    
+        )     
+
+    #View(testpersonsbycounty)
 ```
 
 ```{r APIdtabycountyTessts}
@@ -186,40 +229,131 @@ jsondta<-jsondata[[4]]
     
 dta<-jsondta[[2]]    
 
+    #View(dta)
+
 datelist<-as.vector(colnames(dta))[-c(1:2)]
 
 testsbycounty<-dta%>%
     select(-OBJECTID)%>%
     gather(date, tests, datelist)%>%
-    rename(county=County)
+    rename(county=County)%>%
+    mutate(
+        date=substring(date, 3),
+        date=gsub("\\_", "/", date),
+        date=as.Date(date, format = "%m/%d/%Y")
+        )%>%
+    mutate(
+        county=ifelse(county=="Anne_Arundel", "Anne Arundel", county), 
+        county=ifelse(county=="Baltimore_City", "Baltimore city", county), 
+        county=ifelse(county=="Baltimore_city", "Baltimore city", county), 
+        county=ifelse(county=="Baltimore City", "Baltimore city", county), 
+        county=ifelse(county=="Prince_Georges", "Prince George's", county), 
+        county=ifelse(county=="Queen_Annes", "Queen Anne's", county), 
+        county=ifelse(county=="St_Marys", "St. Mary's", county)    
+        )    
+
+
+    str(testsbycounty)
+    
+    #View(testsbycounty)
 ```
 
-```{r dtabycounty}
+```{r APIdtabycountyPositiveRate}
+url<-("https://opendata.arcgis.com/datasets/54d028e340f44e88945e26579eecd447_0.geojson")
+#metadata: https://www.arcgis.com/sharing/rest/content/items/54d028e340f44e88945e26579eecd447/info/metadata/metadata.xml?format=default&output=html
+
+jsondata<-fromJSON(url) 
+    #str(jsondata)
+    
+jsondta<-jsondata[[4]]
+    #str(jsondta)
+    
+dta<-jsondta[[2]]    
+
+    #View(dta)
+
+#two indicators. Keep only the rolling avearage positivity rate    
+dta<-dta%>%
+    select(-ends_with("Percent_Positive"))%>%
+    rename(date=ReportDate)%>%
+    mutate(
+        date=substring(date, 1, 10),
+        date=as.Date(date, format = "%Y/%m/%d")
+        )
+
+    #colnames(dta)
+    #str(dta)
+   
+countylist<-as.vector(colnames(dta))[-c(1:2)]
+
+prbycounty<-dta%>%
+    select(-OBJECTID)%>%
+    gather(county, positivityrate, countylist)%>%
+    mutate(
+        county=gsub( "_Rolling_Avg", "", county)
+        )%>%
+    mutate(
+        county=ifelse(county=="Anne_Arundel", "Anne Arundel", county), 
+        county=ifelse(county=="Baltimore_City", "Baltimore city", county), 
+        county=ifelse(county=="Baltimore_city", "Baltimore city", county), 
+        county=ifelse(county=="Baltimore City", "Baltimore city", county), 
+        county=ifelse(county=="Prince_Georges", "Prince George's", county), 
+        county=ifelse(county=="Queen_Annes", "Queen Anne's", county), 
+        county=ifelse(county=="St_Marys", "St. Mary's", county)    
+        )    
+
+    str(prbycounty)
+   
+```
+
+```{r}
 dim(casesbycounty)
 dim(deathsbycounty)
 dim(probabledeathsbycounty)
 dim(testpersonsbycounty)
 dim(testsbycounty)
+dim(prbycounty)
 
+table(casesbycounty$county)
+table(deathsbycounty$county)
+table(probabledeathsbycounty$county)
+table(testpersonsbycounty$county)
+table(testsbycounty$county)
+table(prbycounty$county)
+
+colnames(casesbycounty)
+colnames(deathsbycounty)
+colnames(probabledeathsbycounty)
+colnames(testpersonsbycounty)
+colnames(testsbycounty)
+colnames(prbycounty)
+```
+
+```{r dtabycounty}
 dtabycounty<-left_join(casesbycounty, deathsbycounty, 
                      by = c("county", "date"))
 
 dtabycounty<-left_join(dtabycounty, probabledeathsbycounty, 
-                     by = c("county", "date"))%>%
-    mutate(
-        county=ifelse(county=="Anne_Arundel", "Anne Arundel", county), 
-        county=ifelse(county=="Baltimore_City", "Baltimore city", county), 
-        county=ifelse(county=="Prince_Georges", "Prince George's", county), 
-        county=ifelse(county=="Queen_Annes", "Queen Anne's", county), 
-        county=ifelse(county=="St_Marys", "St. Mary's", county)    )
+                     by = c("county", "date"))
 
+dtabycounty<-left_join(dtabycounty, testsbycounty, 
+             by = c("county", "date"))
+
+dtabycounty<-left_join(dtabycounty, testpersonsbycounty, 
+             by = c("county", "date"))
+
+dtabycounty<-left_join(dtabycounty, prbycounty, 
+             by = c("county", "date"))
+
+    #table(dtabycounty$county)
+    #colnames(dtabycounty)
 
 dtabycounty<-left_join(dtabycounty, dtapopcounty, by = "county")
     dim(dtabycounty)
     colnames(dtabycounty)
     length(unique(dtabycounty$county))
 
-dtacounty<-dtabycounty%>%
+dtabycounty<-dtabycounty%>%
     mutate(
         firstdatestate=min(date), #first date for the state
         firstcounty=FALSE, 
@@ -240,8 +374,8 @@ dtacounty<-dtabycounty%>%
     arrange(county, date)%>%
     filter(county!="Maryland") 
 
-    dim(dtacounty)
-    table(dtacounty$county)
+    dim(dtabycounty)
+    table(dtabycounty$county)
 
 ```
 
@@ -856,9 +990,164 @@ _See footnote for further information about data sources. More questions and ans
 
 (Sorry, this is not mobile device friendly, and is best viewed on your regular monitor.)
 
+
 ---
 
-#####__Q 10. Since the phase-2 reopening, the new cases have been going up. What group has been affected most? (NEW)__ 
+```{r plotTestsAndCasesCounty, fig.align="left", out.width="800px", out.height="500px"}
+
+#####__Q 11.1. What are levels of testing across counties? And how do they relate with the level of confirmed cases?__ 
+
+dtafig<-dtabycounty%>%
+    filter(county!="Unknown")%>%
+    filter(date==max(date))%>%
+    select(county, date,  cases, tests, pop)%>%
+    mutate(casespp=round(100000*cases/pop, 1),
+           testspp=round(100000*tests/pop, 1)
+           )
+
+maxx<-max(dtafig$testspp)+5000
+maxy<-max(dtafig$casespp)+500
+
+dtafig%>%
+    plot_ly(x=~testspp,
+        y=~casespp,
+        type='scatter',
+        marker=list(color = toRGB("grey50"), size=8), 
+        text = ~county)%>%
+    add_text(textfont = list(size = 8, color = toRGB("grey50")),
+             textposition = "top")%>%
+    layout(
+        showlegend = FALSE,
+        xaxis=list(title = "Total tests per 100,000 population",  
+                 font=list(size=8),
+                 tickfont = list(size=8),
+                 range=c(0, maxx)
+                 ),
+        yaxis=list(title = "total confirmed cases per 100,000 population",
+                 font=list(size=8),
+                 tickfont = list(size=8),
+                 range=c(0, maxy)
+                 )
+        )
+
+```
+
+```{r plotTrendTestsCounty, fig.align="left", out.width="800px", out.height="800px"}
+
+#####__Q 11.2. How has the testing changed over time across counties?__ 
+#__NOTE__: county-level testing data are available sincemid June, 
+
+dtafig<-dtabycounty%>%
+    mutate(group=county)%>%
+    filter(county!="Unknown")%>%
+    arrange(group, date)%>%
+    mutate(
+        newtests=tests-lag(tests),
+        newtests=ifelse(group!=lag(group), NA, newtests), 
+        newtests=ifelse(newtests<0,    0, newtests),
+    
+        newtestssmooth =round(c(NA,NA,NA,rollmean(newtests, 7),NA,NA,NA), 1), 
+        newtestssmooth=ifelse(group!=lag(group), NA, newtestssmooth),
+        
+        newtestspp=round(100000*newtests/pop, 1),
+        newtestssmoothpp=round(100000*newtestssmooth/pop, 5),
+        
+        newcases=cases-lag(cases),
+        newcases=ifelse(group!=lag(group), NA, newcases), 
+        newcases=ifelse(newcases<0,    0, newcases),
+    
+        newcasessmooth =round(c(NA,NA,NA,rollmean(newcases, 7),NA,NA,NA), 1), 
+        newcasessmooth=ifelse(group!=lag(group), NA, newcasessmooth),
+        
+        newcasespp=round(100000*newcases/pop, 1),
+        newcasessmoothpp=round(100000*newcasessmooth/pop, 5)
+    )
+
+panel <- . %>% 
+    plot_ly(x=~date,
+        y=~newtestssmoothpp, name="New tests per 100,000 (7-day rolling average)",
+        type='scatter',mode = 'lines', 
+        marker=list(color = c( "darkgray"), size = 1),
+        line=list(color = c( "darkgray"))
+        )%>%
+    add_annotations(
+        text = ~unique(group),
+        x = 0.5, y = 0.95, xref = "paper", yref = "paper",    
+        xanchor = "center", yanchor = "bottom", showarrow = FALSE,
+        font = list(size = 12)
+        ) %>%
+    layout(
+        showlegend = FALSE,
+        xaxis=list(title = "",  
+                 font=list(size=10),
+                 tickfont = list(size=8) 
+                 ),
+        yaxis=list(title = "New daily tests per 100,000 population",
+                   overlaying='y2', side="left", showgrid = FALSE)
+        )
+
+dtafig%>%
+    group_by(group) %>%
+    do(p = panel(.)) %>%
+    subplot(nrows = 5, shareX = TRUE, shareY = FALSE)%>%
+        layout(
+        yaxis=list(title = "New daily tests per 100,000 population",
+                   overlaying='y2', side="left", showgrid = FALSE)
+        )    
+
+```
+
+```{r plotTrendTestsCasesCounty, eval=FALSE, fig.align="left", out.width="800px", out.height="800px"}
+
+
+panel <- . %>% 
+    plot_ly(x=~date,
+        y=~newtestssmoothpp, name="New tests per 100,000 (7-day rolling average)",
+        type='scatter',mode = 'lines', 
+        marker=list(color = c( "darkgray"), size = 1),
+        line=list(color = c( "darkgray"))
+        )%>%
+    add_trace(
+        y=~newcasessmoothpp, name="New cases per 100,000 (7-day rolling average)",
+        type='scatter',mode = 'lines', 
+        marker=list(color = c( "orange"), size = 1),
+        line=list(color = c( "orange")),
+        yaxis='y2'
+        )%>%      
+    add_annotations(
+        text = ~unique(group),
+        x = 0.5, y = 0.95, xref = "paper", yref = "paper",    
+        xanchor = "center", yanchor = "bottom", showarrow = FALSE,
+        font = list(size = 12)
+        ) %>%
+    layout(
+        showlegend = FALSE,
+        xaxis=list(title = "",  
+                 font=list(size=10),
+                 tickfont = list(size=8) 
+                 ),
+        yaxis=list(title = "New daily tests per 100,000 population",
+                   overlaying='y2', side="left", showgrid = FALSE),
+        yaxis2=list(title = "New daily cases per 100,000 population", 
+                    side="right", showgrid = FALSE)
+        )
+
+dtafig%>%
+    group_by(group) %>%
+    do(p = panel(.)) %>%
+    subplot(nrows = 5, shareX = TRUE, shareY = FALSE)%>%
+        layout(
+        yaxis=list(title = "New daily tests per 100,000 population",
+                   overlaying='y2', side="left", showgrid = FALSE),
+        yaxis2=list(title = "New daily cases per 100,000 population", 
+                    side="right", showgrid = FALSE)
+        )    
+
+```
+
+---
+
+#####__Q 10. Since the phase-2 reopening, the new cases have been going up. What group has been affected most?__ 
 
 With the reopening, we expect to see - and have seen - increases in new cases. We hope it remains within a manageable level that the health systems can respond effectively.  
 
@@ -1057,11 +1346,21 @@ _Solid line is 7-day rolling average of daily new cases per 100,000 population. 
 
 ```{r plotTrendSincePhase2County, results='asis', fig.align="left", out.width="800px", out.height="800px"}
 
-dtafig<-dtacounty%>%
+dtafig<-dtabycounty%>%
     mutate(group=county)%>%
     filter(county!="Unknown")%>%
     arrange(group, date)%>%
     mutate(
+        newtests=tests-lag(tests),
+        newtests=ifelse(group!=lag(group), NA, newtests), 
+        newtests=ifelse(newtests<0,    0, newtests),
+    
+        newtestssmooth =round(c(NA,NA,NA,rollmean(newtests, 7),NA,NA,NA), 1), 
+        newtestssmooth=ifelse(group!=lag(group), NA, newtestssmooth),
+        
+        newtestspp=round(100000*newtests/pop, 1),
+        newtestssmoothpp=round(100000*newtestssmooth/pop, 1),
+        
         newcases=cases-lag(cases),
         newcases=ifelse(group!=lag(group), NA, newcases), 
         newcases=ifelse(newcases<0,    0, newcases),
@@ -1070,7 +1369,7 @@ dtafig<-dtacounty%>%
         newcasessmooth=ifelse(group!=lag(group), NA, newcasessmooth),
         
         newcasespp=round(100000*newcases/pop, 1),
-        newcasessmoothpp=round(100000*newcasessmooth/pop, 5), 
+        newcasessmoothpp=round(100000*newcasessmooth/pop, 1), 
 
         newcasessmooth2=newcasessmooth,
         newcasessmooth2=ifelse(date<=("2020-06-12"), NA, newcasessmooth2),  
@@ -1090,7 +1389,6 @@ dtafig<-dtacounty%>%
         changeratio=round(current/bottom, 2),
         changediff =current-bottom)%>%
     ungroup()
-
 
 panel <- . %>% 
     plot_ly(x=~date,
@@ -1135,6 +1433,21 @@ dtafig%>%
         yaxis=list(title = "New daily cases per 100,000")
         )    
 ```
+
+```{r dtaMDcounty_export}
+dtaMDCOVIDcounty_HPC_Lightening<-dtafig%>%
+    select(date, county, pop, 
+           cases, deaths, probabledeaths, tests, personstested, positivityrate, 
+           newtests, newtestssmooth, newtestssmoothpp,
+           newcases, newcasessmooth, newcasessmoothpp )
+
+write.csv(dtaMDCOVIDcounty_HPC_Lightening, "C:/Users/YoonJoung Choi/Dropbox/0 iSquared/iSquared_HPC_COVID/Covid-19 HPC Lightning Pilot/dtaMDHD/dtaMDCOVIDcounty.csv")
+
+colnames(dtaMDCOVIDcounty_HPC_Lightening)
+
+colnames(read.csv("C:/Users/YoonJoung Choi/Dropbox/0 iSquared/iSquared_HPC_COVID/Covid-19 HPC Lightning Pilot/dtaMDHD/dtaMDCOVIDcounty.csv"))
+```
+
 
 ---
 
@@ -1514,7 +1827,7 @@ cfrMD<-round(100*deathsMD/casesMD, 1)
 probabledeathsMD<-dtaMD%>%filter(date==max(date))%>%select(probabledeaths)%>%summarize_all(funs(mean))
 cfrprobableMD<-round(100*(deathsMD+probabledeathsMD)/(casesMD+probabledeathsMD), 1)
 
-latestdatecounty<-max(dtacounty$date)
+latestdatecounty<-max(dtabycounty$date)
 ```
 As of `r latestdateMD` 10:00AM, according to Maryland Department of Health, __`r deathsMD` COVID-19 deaths have occurred, that had been laboratory-confirmed__. In addition, MD Health Department has published the number of probably COVID deaths since April 15. There have been __`r probabledeathsMD` probable COVID-19 deaths__, for which death certificate lists COVID-19 as the cause of death but not yet confirmed by a laboratory test. This means case fatality rate can be calculated _with vs. without_ the probable deaths (which are thus probable cases as well). Case fatality rate is: 
 
@@ -1526,7 +1839,7 @@ Given relatively small differences across groups (i.e., by age, sex, and race, r
 Below figure shows mortality by county - in terms of both absolute number (red bars) and case fatality rate (orange bars) as of `r latestdatecounty`.  
 
 ```{r plotdeathsCounty, results='asis', fig.align="left", out.width="800px"}
-dtafig<-dtacounty%>%filter(date==latestdatecounty)%>%
+dtafig<-dtabycounty%>%filter(date==latestdatecounty)%>%
     filter(county!="Unknown")%>%
     select(date, county, deaths, cases)%>%mutate(cfr=round(100*deaths/cases, 3))
 
@@ -1592,7 +1905,7 @@ plot_ly(dtafig, x = ~date, y = ~cfr, type="bar",
 ```
 
 ```{r plotdeathsMDtrends, fig.align="left", out.width="800px"}
-dtafig<-dtacounty%>%select(date, deaths, cases)%>%
+dtafig<-dtabycounty%>%select(date, deaths, cases)%>%
     group_by(date)%>%
     summarize_all(funs(sum))%>%
     mutate(cfr=round(100*deaths/cases, 3))%>%
@@ -1902,7 +2215,7 @@ dta %>% group_by(agegroup) %>%
 
 #####__Q 2. How fast has it been spreading? What is the trend of new cases?__ 
 ```{r dataplotTrendNewCasesMD}
-dtafig<-dtacounty%>%select(date, cases)%>%group_by(date)%>%
+dtafig<-dtabycounty%>%select(date, cases)%>%group_by(date)%>%
     summarize_all(funs(sum))%>%
     arrange(date)%>%
     mutate(
@@ -1941,7 +2254,7 @@ plot_ly(dtafig, x=~date, y=~newcases, name="New cases, daily",
 ```
 
 ```{r dataplotTrendNewCasesCounty}
-dtafig<-dtacounty%>%select(date, county, cases, latesttotal)%>%
+dtafig<-dtabycounty%>%select(date, county, cases, latesttotal)%>%
     arrange(county, date)%>%
     mutate(
         newcases=cases-lag(cases), 
@@ -2018,7 +2331,7 @@ panel <- . %>%
         yaxis=list(title = "New cases")
         )
 
-dtafig<-dtacounty%>%select(date, county, cases, latesttotal)%>%
+dtafig<-dtabycounty%>%select(date, county, cases, latesttotal)%>%
     filter(county!="Unknown")%>%
     arrange(county, date)%>%
     mutate(
@@ -2084,7 +2397,7 @@ subplot(fig1 , fig2, fig3,
 
 ```{r}
 
-dtafig<-dtacounty%>%select(date, county, cases, pop)%>%
+dtafig<-dtabycounty%>%select(date, county, cases, pop)%>%
     arrange(county, date)%>%
     mutate(
         newcases=cases-lag(cases), 
@@ -2103,7 +2416,7 @@ newPG<-round(mean(temp$newcasessmoothpp), 0)
 ```
 Finally, below shows counties ranked by the latest level of daily new cases (i.e., right end of the black line above) - per 100,000 population this time. For example, based on the latest 7-day average, there are `r newPG` new cases per day per 100,000 population in Prince George's county.  
 ```{r plotnewcasesCountyLatest, results='asis', fig.align="left", out.width="800px"}
-dtafig<-dtacounty%>%select(date, county, cases, pop)%>%
+dtafig<-dtabycounty%>%select(date, county, cases, pop)%>%
     filter(county!="Unknown")%>%
     arrange(county, date)%>%
     mutate(
@@ -2143,11 +2456,11 @@ plot_ly(dtafig, y = ~county, x = ~newcasessmoothpp, type="bar", orientation="h",
 
 #####__Q 1. How many confirmed cases do we have now, and where are they?__ 
 ```{r}
-latestdatecounty<-max(dtacounty$date)
-temp<-dtacounty%>%filter(date==latestdatecounty)
+latestdatecounty<-max(dtabycounty$date)
+temp<-dtabycounty%>%filter(date==latestdatecounty)
 statecases<-sum(temp$cases)
 
-ncounties<-dtacounty%>%filter(date==latestdatecounty)%>%nrow()
+ncounties<-dtabycounty%>%filter(date==latestdatecounty)%>%nrow()
 ncountiestotal<-dtapopcounty%>%filter(county!="Maryland")%>%nrow()
 popstate<-dtapopcounty%>%filter(county=="Maryland")%>%select(pop)%>%summarize_all(funs(sum))
 
@@ -2156,7 +2469,7 @@ casesMD<-dtaMD%>%filter(date==max(date))%>%select(cases)%>%summarize_all(funs(ma
 incidencerateMD<-round(100000*casesMD/popstate, 0)
 casesMD<-as.character(casesMD)
 
-topincidencecounty<-dtacounty%>%filter(date==latestdatecounty)%>%mutate(incidence=round(cases*100000/pop), 0)%>%filter(county!="Unknown")%>%filter(incidence==max(incidence)) %>%select(county)
+topincidencecounty<-dtabycounty%>%filter(date==latestdatecounty)%>%mutate(incidence=round(cases*100000/pop), 0)%>%filter(county!="Unknown")%>%filter(incidence==max(incidence)) %>%select(county)
 topincidencecounty<-topincidencecounty
 topincidencecounty
 
@@ -2167,7 +2480,7 @@ Below figure shows number of confirmed cases (gray bars) and infection rates (i.
 
 _Hover over each figure to see values and more options._
 ```{r plottotalcasesCounty, results='asis', fig.align="left", out.width="800px"}
-dtafig<-dtacounty%>%filter(date==latestdatecounty)%>%
+dtafig<-dtabycounty%>%filter(date==latestdatecounty)%>%
     select(date, county, cases, pop)%>%
     mutate(incidence=round(cases*100000/pop), 0)
 
@@ -2218,9 +2531,9 @@ subplot(figcases, figincidence,
 
 ```{r}
 #####__Q 1. When and where was COVID-19 first reported in Maryland?__ 
-firstdatestate<-mean(dtacounty$firstdatestate)
+firstdatestate<-mean(dtabycounty$firstdatestate)
 
-firstcountyname<-dtacounty%>%filter(firstcounty==TRUE)%>%select(county)
+firstcountyname<-dtabycounty%>%filter(firstcounty==TRUE)%>%select(county)
 firstcountyname<-firstcountyname$county
 
 #The first confirmed COVID-19 case was reported in __`r firstcountyname` county on `r firstdatestate`__. 
