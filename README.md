@@ -1,10 +1,11 @@
 COVID19 epidemic in Maryland, US
-Publication available here: https://rpubs.com/YJ_Choi/COVID19_MD
+Publication available here:    
+- https://rpubs.com/YJ_Choi/COVID19_MD
+- https://rpubs.com/YJ_Choi/COVID19_Maryland_V2       
 
 List of files:
 
 A. R markdown for data processing, analysis, and publication
-- COVID19_Maryland: R markdown for the publication, including data access and management 
 
 B. Data folders
 - DataCensusBereau   
