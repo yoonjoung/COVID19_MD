@@ -1,5 +1,6 @@
 COVID19 epidemic in Maryland, US
 Publication available here:    
+- https://isquared.shinyapps.io/COVID19_MD   
 - https://rpubs.com/YJ_Choi/COVID19_MD
 - https://rpubs.com/YJ_Choi/COVID19_Maryland_V2       
 
@@ -7,7 +8,9 @@ List of files:
 
 A. R markdown for data processing, analysis, and publication
 
-B. Data folders
+B. Shiny App folders 
+
+C. Data folders
 - DataCensusBereau   
 ---Population data from US Census Bureau [County Population Totals: 2010-2019](https://www.census.gov/data/tables/time-series/demo/popest/2010s-counties-total.html#par_textimage). Accessed on March 29, 2020.   
 
