@@ -1,0 +1,13 @@
+name: COVID19_MD
+title: COVID19_MD
+username:
+account: isquared
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 5722298
+bundleId: 6357114
+url: https://isquared.shinyapps.io/COVID19_MD/
+when: 1664565311.6182
+lastSyncTime: 1664565311.61821
+asMultiple: FALSE
+asStatic: FALSE
