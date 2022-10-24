@@ -1,8 +1,8 @@
 COVID19 epidemic in Maryland, US
 Publication available here:    
 - https://isquared.shinyapps.io/COVID19_MD   
-- https://rpubs.com/YJ_Choi/COVID19_MD
 - https://rpubs.com/YJ_Choi/COVID19_Maryland_V2       
+- https://rpubs.com/YJ_Choi/COVID19_MD
 
 List of files:
 
